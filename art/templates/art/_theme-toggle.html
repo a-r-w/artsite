@@ -1,0 +1,9 @@
+{% comment %}
+Cycling theme switch (Auto → Light → Dark). Hidden until theme.js reveals it, so
+it never shows as a dead control without JS (where the OS-driven default still
+applies). theme.js fills the icon/label and wires the click + persistence.
+{% endcomment %}
+<button type="button" class="theme-toggle" data-theme-toggle hidden>
+  <span class="theme-toggle__icon" aria-hidden="true" data-theme-icon></span>
+  <span class="theme-toggle__label" data-theme-label></span>
+</button>

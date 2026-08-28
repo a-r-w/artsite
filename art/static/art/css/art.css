@@ -1,0 +1,581 @@
+/* ---------- Tokens ---------- */
+/* One palette, two values per token via light-dark(). The `color-scheme` on
+   :root decides which value resolves: "light dark" follows the OS (the default,
+   and the no-JS behavior); the theme toggle pins it via [data-theme] below. */
+:root {
+  color-scheme: light dark;
+  --bg: light-dark(#fbfaf7, #16161a);
+  --surface: light-dark(#ffffff, #1d1d22);
+  --ink: light-dark(#1c1c1c, #ecebe6);
+  --ink-soft: light-dark(#4a4a4a, #b8b6ae);
+  --muted: light-dark(#8a8a8a, #807c75);
+  --rule: light-dark(#e6e3dc, #2d2d34);
+  --accent: light-dark(#8a3324, #d99b8f);
+  --accent-soft: light-dark(#c0746a, #b56f63);
+  /* light-dark() takes colours, not whole shadow values, so compose from two. */
+  --shadow-1: light-dark(rgba(0, 0, 0, 0.04), rgba(0, 0, 0, 0.5));
+  --shadow-2: light-dark(rgba(0, 0, 0, 0.06), rgba(0, 0, 0, 0.4));
+  --shadow: 0 1px 2px var(--shadow-1), 0 8px 24px var(--shadow-2);
+  --radius: 4px;
+  --font-serif: "Iowan Old Style", "Palatino Linotype", "URW Palladio L", Palatino, Georgia, serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, "Helvetica Neue", Arial, sans-serif;
+  --maxw: 1080px;
+  /* Status / overlay / on-accent colours, kept in the token layer so a palette
+     change or per-site override reaches messages, buttons, and overlays too.
+     Scrims and overlay shadows are intentionally dark in both themes. */
+  --success: light-dark(#4a8c6a, #6fbf9b);
+  --on-accent: light-dark(#ffffff, #241a16);
+  --radius-sm: 3px;
+  --scrim: rgba(0, 0, 0, 0.55);
+  --scrim-strong: rgba(0, 0, 0, 0.92);
+  --shadow-modal: 0 24px 60px rgba(0, 0, 0, 0.35);
+  --shadow-lightbox: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+/* The toggle pins the scheme; absent / "auto" leaves it OS-driven above. */
+:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="dark"] { color-scheme: dark; }
+
+/* ---------- Reset-ish ---------- */
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+img { max-width: 100%; height: auto; display: block; }
+
+/* Fade images in when they finish loading: lazy thumbnails site-wide, plus any
+   image opted in with [data-fade] (the eager, high-priority detail hero, which
+   isn't lazy). The is-loaded class is added by _lazy_image_loader.html. */
+img[loading="lazy"],
+img[data-fade] {
+  opacity: 0;
+  transition: opacity 320ms ease;
+}
+img[loading="lazy"].is-loaded,
+img[data-fade].is-loaded { opacity: 1; }
+@media (prefers-reduced-motion: reduce) {
+  img[loading="lazy"],
+  img[data-fade] { opacity: 1; transition: none; }
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: border-color 120ms ease, color 120ms ease;
+}
+a:hover { border-bottom-color: currentColor; }
+a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+h1, h2, h3 {
+  font-family: var(--font-serif);
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  margin: 0;
+}
+
+p { margin: 0 0 1rem; }
+
+/* ---------- Layout ---------- */
+.site-header,
+.site-main,
+.site-footer {
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding: 0 1.25rem;
+}
+
+.site-header {
+  padding-top: 2.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--rule);
+  margin-bottom: 1.5rem;
+}
+
+.site-title {
+  display: inline-block;
+  font-family: var(--font-serif);
+  font-size: 1.75rem;
+  color: var(--ink);
+  border-bottom: none;
+}
+.site-title:hover { color: var(--accent); border-bottom: none; }
+
+.site-footer {
+  margin-top: 4rem;
+  padding-top: 1.5rem;
+  padding-bottom: 2.5rem;
+  border-top: 1px solid var(--rule);
+  color: var(--muted);
+  font-size: 0.85rem;
+  text-align: center;
+}
+.site-footer p { margin: 0; }
+.site-footer a { color: var(--ink-soft); }
+.site-footer a:hover { color: var(--accent); }
+
+/* ---------- Theme toggle (public footer + curate topbar) ---------- */
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+  padding: 0.15em 0.5em;
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  cursor: pointer;
+  line-height: 1;
+}
+.theme-toggle:hover { border-color: var(--rule); color: var(--accent); }
+.theme-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.theme-toggle__icon { font-size: 1.1em; }
+.site-footer .theme-toggle { margin-top: 0.5rem; }  /* its own centered line under the footer text */
+
+/* Touch devices: the toggle's compact desktop size is below the ~44px tap
+   target (it's already inline-flex + vertically centered). */
+@media (pointer: coarse) {
+  .theme-toggle { min-height: 44px; padding-inline: 0.7em; }
+}
+
+/* ---------- Flash messages (e.g. NFC tag confirmation) ---------- */
+.site-messages {
+  list-style: none;
+  margin: 0 0 1.5rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.site-message {
+  padding: 0.7rem 1rem;
+  font-size: 0.95rem;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--muted);
+  border-radius: var(--radius);
+}
+.site-message--success {
+  border-left-color: var(--success);
+  background: color-mix(in srgb, var(--success) 8%, var(--surface));
+}
+.site-message--info { border-left-color: var(--accent-soft); }
+
+/* ---------- Nav ---------- */
+.site-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.25rem;
+  margin: 0 0 1.5rem;
+  font-size: 0.95rem;
+}
+.site-nav a {
+  color: var(--ink-soft);
+  padding: 0.25rem 0;
+}
+.site-nav a:hover { color: var(--accent); }
+
+.page-meta {
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin: -0.5rem 0 1.5rem;
+}
+
+.empty {
+  color: var(--muted);
+  font-style: italic;
+  padding: 2rem 0;
+  text-align: center;
+}
+
+/* ---------- Group jump-list ---------- */
+.group-jump {
+  font-size: 0.9rem;
+  line-height: 1.9;
+  margin: 0 0 2rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid var(--rule);
+  color: var(--ink-soft);
+}
+.group-jump a {
+  color: var(--ink-soft);
+  padding: 0.1rem 0;
+}
+.group-jump a:hover { color: var(--accent); }
+.group-jump__sep {
+  color: var(--muted);
+  margin: 0 0.55rem;
+  user-select: none;
+}
+
+.group-count {
+  display: inline-block;
+  margin-left: 0.6rem;
+  color: var(--muted);
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  vertical-align: 0.18em;
+}
+
+/* ---------- Art grid ---------- */
+.art-grid {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 3rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1.75rem 1rem;
+}
+
+.art-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  color: var(--ink);
+  border-bottom: none;
+  outline: none;
+}
+.art-card:hover { border-bottom: none; }
+.art-card:hover .art-card__title { color: var(--accent); }
+.art-card:focus-visible { outline: none; }
+.art-card:focus-visible .art-card__image-wrap {
+  box-shadow: var(--shadow), 0 0 0 3px var(--accent);
+}
+
+.art-card__image-wrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow), 0 0 0 0 transparent;
+  overflow: hidden;
+  transition: box-shadow 180ms ease;
+}
+.art-card:hover .art-card__image-wrap {
+  box-shadow: var(--shadow), 0 0 0 3px var(--accent-soft);
+}
+/* Fill the square wrap and letterbox via object-fit, sized off the wrap's
+   concrete (absolute) box rather than a percentage max-height resolved against
+   the aspect-ratio parent — iOS Safari ignores the latter, so a much-taller-
+   than-wide thumbnail kept its natural height and overflowed (and was clipped
+   by `overflow: hidden`). `padding` gives the inset the 88% caps used to. */
+.art-card__image-wrap img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 6%;
+  object-fit: contain;
+}
+@media (prefers-reduced-motion: reduce) {
+  .art-card__image-wrap,
+  #overlay,
+  #overlay img { transition: none !important; }
+}
+.art-card__image-wrap--empty {
+  background: var(--surface);
+  border: 1px dashed var(--rule);
+  position: relative;
+}
+.art-card__image-wrap--empty::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 28px;
+  height: 28px;
+  background: currentColor;
+  color: var(--muted);
+  opacity: 0.45;
+  -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.5'><rect x='3' y='3' width='18' height='18' rx='1'/><path d='M3 17l4-4 4 4 4-6 6 8'/></svg>") no-repeat center / contain;
+          mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.5'><rect x='3' y='3' width='18' height='18' rx='1'/><path d='M3 17l4-4 4 4 4-6 6 8'/></svg>") no-repeat center / contain;
+}
+
+.art-card__title {
+  font-family: var(--font-serif);
+  font-size: 0.95rem;
+  margin-top: 0.75rem;
+  line-height: 1.2;
+}
+.art-card__artist {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin-top: 0.15rem;
+}
+
+/* ---------- Sections ---------- */
+.artist-header {
+  display: flex;
+  gap: 1.25rem;
+  align-items: center;
+  padding-top: 0.5rem;
+  margin-bottom: 1.25rem;
+}
+.artist-portrait {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  box-shadow: var(--shadow);
+}
+.artist-portrait--empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface);
+  color: var(--muted);
+  font-family: var(--font-serif);
+  font-size: 1.6rem;
+  text-transform: uppercase;
+  border: 1px solid var(--rule);
+  box-shadow: none;
+  line-height: 1;
+}
+.artist-meta { flex: 1; min-width: 0; }
+.artist-name {
+  font-size: 1.45rem;
+  margin: 0 0 0.25rem;
+  line-height: 1.2;
+}
+.artist-links {
+  list-style: none;
+  padding: 0;
+  margin: 0.15rem 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.15rem 1rem;
+  font-size: 0.88rem;
+}
+.artist-links a { color: var(--ink-soft); overflow-wrap: anywhere; }
+.artist-links a:hover { color: var(--accent); }
+.artist-notes {
+  color: var(--ink-soft);
+  font-size: 0.92rem;
+  margin: 0.4rem 0 0;
+  max-width: 60ch;
+}
+
+.artist-section,
+.location-section {
+  margin: 3rem 0 3rem;
+  padding-top: 2rem;
+  border-top: 1px solid var(--rule);
+}
+.artist-section:first-of-type,
+.location-section:first-of-type {
+  border-top: none;
+  padding-top: 0;
+  margin-top: 0;
+}
+
+.location-name {
+  font-size: 1.4rem;
+  margin: 0 0 1.25rem;
+  line-height: 1.2;
+}
+
+/* ---------- Detail page ---------- */
+.back-link {
+  font-size: 0.9rem;
+  margin: 0 0 1.5rem;
+}
+.back-link a { color: var(--ink-soft); }
+
+.piece-header {
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+.piece-title {
+  font-size: 2rem;
+  line-height: 1.15;
+}
+.piece-byline {
+  margin: 0.4rem 0 0;
+  color: var(--ink-soft);
+  font-style: italic;
+}
+
+.piece-figure {
+  margin: 0 0 2rem;
+  text-align: center;
+  background: var(--surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 1.5rem;
+}
+.piece-figure img {
+  margin: 0 auto;
+  /* Sizing is driven inline (per image) from the stored dimensions: a single
+     `width` capped at the container, the natural width, and the width that
+     keeps height within 75vh, with `aspect-ratio` deriving the height. That
+     reserves the box before load (no jump) without clamping height (no
+     distortion). These rules are the fallback for images without dimensions. */
+  max-width: 100%;
+  max-height: 75vh;
+  height: auto;
+  cursor: zoom-in;
+}
+
+/* Blur-up media box (when stored dimensions are known): the inline `width` /
+   `aspect-ratio` above move here to reserve the box, and a blurred placeholder
+   (--lqip, a tiny inlined JPEG) fills it until the full-res hero fades in over
+   it. overflow:hidden clips the scaled blur. */
+.piece-figure__media {
+  display: block;
+  position: relative;
+  margin: 0 auto;
+  overflow: hidden;
+}
+.piece-figure__media::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-image: var(--lqip);  /* unset -> none: a harmless empty layer */
+  background-size: cover;
+  background-position: center;
+  /* The ~20px source is already soft from upscaling; a little blur smooths the
+     blocks and the slight scale hides the blurred edge bleeding inward. */
+  filter: blur(8px);
+  transform: scale(1.06);
+  transition: opacity 320ms ease;
+  pointer-events: none;
+}
+/* Once the sharp image is in, drop the blur (true cross-fade; also lets a
+   transparent PNG show the card surface, not the placeholder). Progressive
+   enhancement — without :has() the opaque hero simply covers the blur. */
+.piece-figure__media:has(img.is-loaded)::before { opacity: 0; }
+.piece-figure__media img {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  max-height: none;  /* the box already caps height via its width calc */
+  margin: 0;
+  object-fit: contain;
+  cursor: zoom-in;
+}
+@media (prefers-reduced-motion: reduce) {
+  .piece-figure__media::before { transition: none; }
+}
+
+.piece-meta {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  column-gap: 1.5rem;
+  row-gap: 0.5rem;
+  max-width: 640px;
+  margin: 0 auto 2rem;
+  padding: 1.25rem 1.5rem;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  font-size: 0.95rem;
+}
+.piece-meta dt {
+  color: var(--muted);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding-top: 0.15rem;
+}
+.piece-meta dd {
+  margin: 0;
+  color: var(--ink);
+  overflow-wrap: anywhere;  /* a long website URL must wrap, not force horizontal scroll on phones */
+}
+.piece-meta .muted { color: var(--muted); }
+
+.artist-card {
+  display: flex;
+  gap: 1.25rem;
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 1.25rem 1.5rem;
+  background: var(--surface);
+  border-radius: var(--radius);
+  border: 1px solid var(--rule);
+  align-items: flex-start;
+}
+.artist-card .artist-portrait {
+  width: 64px;
+  height: 64px;
+}
+.artist-card .artist-name {
+  font-size: 1.1rem;
+  margin: 0 0 0.5rem;
+}
+
+.staff-only {
+  margin-top: 2rem;
+  display: flex;
+  justify-content: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  font-size: 0.85rem;
+}
+.nfc-link {
+  display: inline-block;
+  padding: 0.5rem 1rem;
+  border: 1px dashed var(--muted);
+  border-radius: var(--radius);
+  color: var(--muted);
+}
+.nfc-link:hover { color: var(--accent); border-color: var(--accent); }
+
+/* ---------- Responsive ---------- */
+@media (max-width: 600px) {
+  body { font-size: 15px; }
+  .site-header { padding-top: 1.5rem; }
+  .site-title { font-size: 1.4rem; }
+  .piece-title { font-size: 1.5rem; }
+  .art-grid {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 1.25rem 0.5rem;
+  }
+  .artist-header { gap: 1rem; }
+  .artist-portrait { width: 56px; height: 56px; }
+  .artist-portrait--empty { font-size: 1.25rem; }
+  .artist-name { font-size: 1.2rem; }
+  .location-name { font-size: 1.2rem; }
+  .group-count {
+    display: block;
+    margin-left: 0;
+    margin-top: 0.1rem;
+    vertical-align: baseline;
+  }
+  .group-jump { line-height: 1.8; }
+  .group-jump__sep { margin: 0 0.4rem; }
+  .artist-section,
+  .location-section { margin: 2.25rem 0; padding-top: 1.5rem; }
+  .piece-figure { padding: 0.75rem; }
+  .piece-meta {
+    grid-template-columns: 1fr;
+    row-gap: 0.15rem;
+    padding: 1rem;
+  }
+  .piece-meta dt { padding-top: 0.6rem; }
+  .piece-meta dt:first-child { padding-top: 0; }
+  .artist-card { flex-direction: column; align-items: center; text-align: center; }
+}

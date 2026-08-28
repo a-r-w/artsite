@@ -1,0 +1,11 @@
+{% comment %}
+Anchor-link nav shared by the grouped listing pages (by artist / by location /
+untagged). `groups` is a {% regroup %} list (each item has .grouper); each link
+jumps to the matching <section id="{{ grouper.id }}">. `jump_label` names the
+nav for assistive tech.
+{% endcomment %}
+<nav class="group-jump" aria-label="{{ jump_label }}">
+  {% for g in groups %}
+    <a href="#{{ g.grouper.id }}">{{ g.grouper }}</a>{% if not forloop.last %}<span class="group-jump__sep" aria-hidden="true">·</span>{% endif %}
+  {% endfor %}
+</nav>

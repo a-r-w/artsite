@@ -1,0 +1,142 @@
+{% extends "curate/curate_base.html" %}
+{% load art_extras %}
+
+{% block head_title %}{{ page_title }}{% endblock %}
+{% block page_title %}{{ page_title }}{% endblock %}
+{% block page_sub %}
+  {% if mode == 'edit' %}
+    <p class="curate-page-sub">
+      <a href="{% url 'art:piece' slug=object.slug %}">View on site →</a>
+    </p>
+  {% endif %}
+{% endblock %}
+{% block page_actions %}
+  {% if mode == 'edit' %}
+    <a class="curate-btn curate-btn--ghost-danger"
+       href="{% url 'art:curate:piece-delete' slug=object.slug %}">Delete piece</a>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+  <form class="curate-form" method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+      <div class="curate-form__errors" role="alert">{{ form.non_field_errors }}</div>
+    {% endif %}
+
+    {% include "curate/_dropzone.html" with field=form.image current=form.instance.image unsaved=form.unsaved_image noun="image" legend="Image" %}
+
+    <fieldset class="curate-form__section">
+      <legend>Details</legend>
+      {% include "curate/_field.html" with field=form.title %}
+      <div class="curate-form__row">
+        {% include "curate/_field_with_inline_add.html" with field=form.artist add_url='art:curate:artist-inline-add' add_label='+ New artist' %}
+        {% include "curate/_field_with_inline_add.html" with field=form.medium add_url='art:curate:medium-inline-add' add_label='+ New medium' %}
+      </div>
+      {% include "curate/_field.html" with field=form.medium_details %}
+      <div class="curate-form__row curate-form__row--triple">
+        {% include "curate/_field.html" with field=form.width %}
+        {% include "curate/_field.html" with field=form.height %}
+        {% include "curate/_field.html" with field=form.dimension_unit %}
+      </div>
+      {% include "curate/_field_with_inline_add.html" with field=form.location add_url='art:curate:location-inline-add' add_label='+ New location' %}
+      {% if mode == 'edit' and object.slug %}
+        <p class="curate-form__slug">Slug: <code>{{ object.slug }}</code></p>
+      {% endif %}
+    </fieldset>
+
+    <fieldset class="curate-form__section">
+      <legend>Provenance</legend>
+      {% include "curate/_field.html" with field=form.date_acquired %}
+      <div class="curate-form__row curate-form__row--price">
+        {% include "curate/_field.html" with field=form.purchase_currency %}
+        {% include "curate/_field.html" with field=form.purchase_price %}
+      </div>
+      {% include "curate/_field.html" with field=form.acquired %}
+      {% include "curate/_field.html" with field=form.website %}
+    </fieldset>
+
+    <fieldset class="curate-form__section">
+      <legend>Notes</legend>
+      {% include "curate/_field.html" with field=form.notes %}
+      {% include "curate/_field.html" with field=form.notes_private %}
+    </fieldset>
+
+    {% if mode == 'edit' %}
+      <fieldset class="curate-form__section curate-documents">
+        <legend>Documents {% include "curate/_private_badge.html" %}</legend>
+        {% if object.documents.all %}
+          <ul class="curate-documents__list">
+            {% for doc in object.documents.all %}
+              <li class="curate-documents__item">
+                <a class="curate-documents__link" target="_blank" rel="noopener"
+                   href="{% url 'art:curate:document-download' slug=object.slug pk=doc.pk %}">
+                  <span class="curate-documents__preview">
+                    {% if doc.thumbnail %}
+                      <img src="{% url 'art:curate:document-thumb' slug=object.slug pk=doc.pk %}" alt="" loading="lazy">
+                    {% else %}
+                      <span class="curate-documents__ext" aria-hidden="true">{{ doc.original_name|file_extension }}</span>
+                    {% endif %}
+                  </span>
+                  <span class="curate-documents__name">{{ doc.original_name|default:doc.file.name }}</span>
+                </a>
+                <span class="curate-documents__meta">{{ doc.uploaded_at|date:"j M Y" }}{% if doc.size %} · {{ doc.size|filesizeformat }}{% endif %}</span>
+                <a class="curate-btn curate-btn--small curate-btn--ghost curate-documents__download"
+                   href="{% url 'art:curate:document-download' slug=object.slug pk=doc.pk %}?download=1">Download</a>
+                {# Submits the standalone form declared after the piece form (forms can't nest). #}
+                <button type="submit" form="doc-del-{{ doc.pk }}"
+                        class="curate-btn curate-btn--small curate-btn--ghost-danger curate-documents__remove">Remove</button>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="curate-documents__empty">No documents yet.</p>
+        {% endif %}
+        <div class="curate-documents__add">
+          <input type="file" name="documents" multiple aria-label="Add documents" form="doc-add-form">
+          <button type="submit" form="doc-add-form" class="curate-btn curate-btn--small">Upload</button>
+        </div>
+      </fieldset>
+    {% else %}
+      <fieldset class="curate-form__section">
+        <legend>Documents {% include "curate/_private_badge.html" %}</legend>
+        <p class="curate-documents__note">Save the piece first to attach documents (receipts, valuations, …).</p>
+      </fieldset>
+    {% endif %}
+
+    <fieldset class="curate-form__section">
+      <legend>Status</legend>
+      <label class="curate-form__check">
+        {{ form.tagged }}
+        <span>{{ form.tagged.label }}</span>
+      </label>
+      {% if form.tagged.help_text %}<p class="curate-form__help">{{ form.tagged.help_text }}</p>{% endif %}
+      {% if form.tagged.errors %}<p class="curate-form__field-error">{{ form.tagged.errors|join:" " }}</p>{% endif %}
+    </fieldset>
+
+    {% if mode == 'edit' and object.created %}
+      <p class="curate-form__stamp">
+        Added {{ object.created|date:"j M Y" }}{% if object.modified %} · last edited {{ object.modified|date:"j M Y" }}{% endif %}
+      </p>
+    {% endif %}
+
+    <div class="curate-form__actions">
+      <button type="submit" class="curate-btn">{% if mode == 'edit' %}Save changes{% else %}Add piece{% endif %}</button>
+      {% if mode == 'add' %}
+        <button type="submit" name="_addanother" value="1" class="curate-btn curate-btn--ghost">Save &amp; add another</button>
+      {% endif %}
+      <a class="curate-btn curate-btn--ghost" href="{% url 'art:curate:piece-list' %}">Cancel</a>
+    </div>
+  </form>
+
+  {# The document controls live in the Documents fieldset inside the piece form above; their forms are declared here (outside it — forms can't nest) and wired via the HTML form= attribute. #}
+  {% if mode == 'edit' %}
+    <form id="doc-add-form" method="post" enctype="multipart/form-data"
+          action="{% url 'art:curate:document-add' slug=object.slug %}">{% csrf_token %}</form>
+    {% for doc in object.documents.all %}
+      <form id="doc-del-{{ doc.pk }}" method="post"
+            action="{% url 'art:curate:document-delete' slug=object.slug pk=doc.pk %}">{% csrf_token %}</form>
+    {% endfor %}
+  {% endif %}
+{% endblock %}

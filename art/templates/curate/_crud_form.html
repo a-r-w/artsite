@@ -1,0 +1,31 @@
+{% extends "curate/curate_base.html" %}
+
+{% block head_title %}{{ page_title }}{% endblock %}
+{% block page_title %}{{ page_title }}{% endblock %}
+{% block page_actions %}
+  {% if mode == 'edit' and delete_url %}
+    <a class="curate-btn curate-btn--ghost-danger" href="{{ delete_url }}">Delete</a>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+  <form class="curate-form" method="post" enctype="multipart/form-data" novalidate>
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+      <div class="curate-form__errors" role="alert">{{ form.non_field_errors }}</div>
+    {% endif %}
+
+    <fieldset class="curate-form__section">
+      <legend>{{ page_title }}</legend>
+      {% for field in form %}
+        {% include "curate/_field.html" with field=field %}
+      {% endfor %}
+    </fieldset>
+
+    <div class="curate-form__actions">
+      <button type="submit" class="curate-btn">{% if mode == 'edit' %}Save changes{% else %}Create{% endif %}</button>
+      <a class="curate-btn curate-btn--ghost" href="{{ back_url }}">Cancel</a>
+    </div>
+  </form>
+{% endblock %}

@@ -1,0 +1,23 @@
+{% comment %}
+A form field rendered with a "+ New <thing>" button next to it that opens
+an HTMX-driven create modal. The modal posts back; on success a custom
+modelCreated event splices the new option into this <select> and closes.
+
+Usage:
+  {% include "curate/_field_with_inline_add.html"
+     with field=form.artist
+     add_url='art:curate:artist-inline-add'
+     add_label='+ New artist' %}
+{% endcomment %}
+<div class="curate-form__field curate-form__field--with-add{% if field.errors %} curate-form__field--errored{% endif %}">
+  {{ field.label_tag }}
+  <div class="curate-form__inline-add">
+    {{ field }}
+    <button type="button" class="curate-btn curate-btn--ghost curate-btn--small"
+            hx-get="{% url add_url %}?target={{ field.id_for_label }}"
+            hx-target="#curate-modal"
+            hx-swap="innerHTML">{{ add_label }}</button>
+  </div>
+  {% if field.help_text %}<p class="curate-form__help">{{ field.help_text }}</p>{% endif %}
+  {% if field.errors %}<p class="curate-form__field-error">{{ field.errors|join:" " }}</p>{% endif %}
+</div>

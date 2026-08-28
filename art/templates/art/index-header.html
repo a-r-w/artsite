@@ -1,0 +1,8 @@
+<nav class="site-nav" aria-label="Primary">
+  <a href="{% url 'art:index' %}">All pieces</a>
+  <a href="{% url 'art:artists' %}">By artist</a>
+  <a href="{% url 'art:location' %}">By location</a>
+  {% if user.is_authenticated and user.is_staff %}
+    <a href="{% url 'art:untagged' %}">Untagged</a>
+  {% endif %}
+</nav>

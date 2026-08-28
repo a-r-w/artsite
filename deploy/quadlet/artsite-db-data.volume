@@ -1,0 +1,5 @@
+[Volume]
+# Persistent volume for PostgreSQL data
+
+[Install]
+WantedBy=default.target

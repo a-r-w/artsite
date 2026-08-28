@@ -1,0 +1,7 @@
+{% extends "art/base.html" %}
+{% block head_title %}Not found · The Collection{% endblock %}
+{% block content %}
+  <p class="back-link"><a href="{% url 'art:index' %}">← All pieces</a></p>
+  <h1>Not found</h1>
+  <p>That piece doesn't exist — or perhaps it has been re-hung.</p>
+{% endblock %}

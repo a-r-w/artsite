@@ -1,0 +1,11 @@
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+# Generated migrations and the platform virtualenvs aren't ours to lint.
+extend-exclude = ["**/migrations/**", ".venv-linux", "venv", ".venv"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B"]
+
+[tool.ruff.format]
+quote-style = "single"

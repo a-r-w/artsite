@@ -1,0 +1,41 @@
+{% extends "curate/curate_base.html" %}
+
+{% block head_title %}Mediums{% endblock %}
+{% block page_title %}Mediums{% endblock %}
+{% block page_sub %}
+  <p class="curate-page-sub">{{ paginator.count }} {% if is_filtered %}matching · filtered{% else %}total{% endif %}</p>
+{% endblock %}
+{% block page_actions %}
+  <a class="curate-btn" href="{% url 'art:curate:medium-add' %}">+ New medium</a>
+{% endblock %}
+
+{% block content %}
+  {% include "curate/_list_controls.html" with search_placeholder="medium name" %}
+  {% if mediums %}
+    <div class="curate-table-wrap">
+    <table class="curate-table">
+      <thead>
+        <tr>
+          <th class="curate-table__col-name">Description</th>
+          <th class="curate-table__col-num">Pieces</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for medium in mediums %}
+          <tr>
+            <td>
+              <a class="curate-table__name" href="{% url 'art:curate:medium-edit' pk=medium.id %}">
+                {{ medium.description }}
+              </a>
+            </td>
+            <td class="curate-table__col-num">{{ medium.piece_count }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    {% include "curate/_pagination.html" %}
+  {% else %}
+    <p class="empty">{% if is_filtered %}No mediums match your search.{% else %}No mediums yet.{% endif %}</p>
+  {% endif %}
+{% endblock %}

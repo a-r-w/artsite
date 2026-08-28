@@ -1,0 +1,41 @@
+name: CI
+
+# Lint + test gate. Everything here runs with no network or credentials
+# (the suite uses SQLite + in-memory storage via artsite.settings_test), so
+# it's cheap and deterministic. Paths assume the project is at the repo root.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+# A newer push to the same branch/PR cancels the in-flight run.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      # Actions are pinned by commit SHA (supply-chain hardening); the trailing
+      # comment is the human-readable version. Dependabot keeps these updated.
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Ruff lint
+        run: ruff check .
+
+      - name: Ruff format check
+        run: ruff format --check .
+
+      - name: Run tests
+        run: python manage.py test --settings=artsite.settings_test

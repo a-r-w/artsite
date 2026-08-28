@@ -1,0 +1,15 @@
+# Direct dependencies. Compile into requirements.txt with:
+#   uv pip compile requirements.in -o requirements.txt --python-version 3.12
+
+django>=6.0,<6.1
+django-axes>=8.1,<9
+django-htmx
+django-storages[google]
+easy-thumbnails
+pypdfium2
+pillow-heif
+dj-database-url
+psycopg2-binary
+gunicorn
+whitenoise
+sentry-sdk[django]

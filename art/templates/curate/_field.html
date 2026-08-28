@@ -1,0 +1,19 @@
+{% comment %}
+Renders a single bound form field with its label, widget, help text, and errors.
+A field whose name is in the form's PRIVATE_FIELDS gets a "private" badge next to
+its label — a visual cue that its value is never shown on the public site.
+Usage: {% include "curate/_field.html" with field=form.title %}
+{% endcomment %}
+<div class="curate-form__field{% if field.errors %} curate-form__field--errored{% endif %}">
+  {% if field.name in field.form.PRIVATE_FIELDS %}
+    <span class="curate-form__label-row">
+      {{ field.label_tag }}
+      {% include "curate/_private_badge.html" %}
+    </span>
+  {% else %}
+    {{ field.label_tag }}
+  {% endif %}
+  {{ field }}
+  {% if field.help_text %}<p class="curate-form__help">{{ field.help_text }}</p>{% endif %}
+  {% if field.errors %}<p class="curate-form__field-error">{{ field.errors|join:" " }}</p>{% endif %}
+</div>

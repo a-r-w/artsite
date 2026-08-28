@@ -1,0 +1,15 @@
+{% comment %}
+Pre-paint theme init: apply a saved light/dark choice to <html> before the
+stylesheet paints, so switching never flashes the wrong theme. Absent or "auto"
+leaves data-theme off, letting CSS (color-scheme: light dark) follow the OS.
+Must stay inline in <head> above the stylesheets — a deferred script would run
+too late to avoid the flash. The toggle that writes this value is theme.js.
+{% endcomment %}
+<script nonce="{{ request.csp_nonce }}">
+  (function () {
+    try {
+      var t = localStorage.getItem('theme');
+      if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+    } catch (e) {}
+  })();
+</script>

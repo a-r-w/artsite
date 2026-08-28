@@ -1,0 +1,13 @@
+{% comment %}
+The django.contrib.messages flash list, shared by the public and curate base
+templates. `prefix` ("site" / "curate") selects the CSS namespace so each base
+keeps its own styling; the role=status + aria-live announce contract is
+identical and lives here in one place.
+{% endcomment %}
+{% if messages %}
+  <ul class="{{ prefix }}-messages" role="status" aria-live="polite">
+    {% for message in messages %}
+      <li class="{{ prefix }}-message {{ prefix }}-message--{{ message.tags }}">{{ message }}</li>
+    {% endfor %}
+  </ul>
+{% endif %}

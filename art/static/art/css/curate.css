@@ -1,0 +1,1021 @@
+/* Styles specific to the /curate/ admin shell. Reuses tokens from art.css. */
+
+.curate-body {
+  background: var(--bg);
+  color: var(--ink);
+}
+
+/* ---------- Topbar ---------- */
+.curate-topbar {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  padding: 0.85rem 1.5rem;
+  background: var(--surface);
+  border-bottom: 1px solid var(--rule);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+/* When the browser scrolls an invalid field into view to show its native
+   validation bubble, the sticky topbar above would otherwise cover it and the
+   bubble appears to emerge from the banner. Park scrolled-to form controls
+   below the topbar so the field and its bubble stay visible. */
+.curate-form input,
+.curate-form select,
+.curate-form textarea {
+  scroll-margin-top: 5.5rem;
+}
+.curate-brand {
+  font-family: var(--font-serif);
+  font-size: 1.15rem;
+  color: var(--ink);
+  border-bottom: none;
+  white-space: nowrap;
+}
+.curate-brand:hover { color: var(--accent); border-bottom: none; }
+.curate-nav {
+  display: flex;
+  gap: 1.25rem;
+  flex: 1;
+  font-size: 0.92rem;
+}
+.curate-nav a {
+  color: var(--ink-soft);
+  padding: 0.3rem 0;
+  border-bottom: 2px solid transparent;
+}
+.curate-nav a:hover { color: var(--accent); border-bottom-color: transparent; }
+.curate-nav a[aria-current="page"] {
+  color: var(--ink);
+  border-bottom-color: var(--accent);
+}
+.curate-topbar__meta {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.curate-topbar__meta a { color: var(--ink-soft); }
+.curate-logout { margin: 0; }
+.curate-logout__btn {
+  font: inherit;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+.curate-logout__btn:hover { color: var(--accent); }
+
+/* Utility menu (theme, settings, view site, sign out). On desktop it's just a
+   flex item on the right of the topbar (nav's flex:1 pushes it over) that lays
+   the meta links out inline; the checkbox + hamburger label are hidden. Once
+   the links no longer fit beside the nav it collapses into a tap-to-open
+   dropdown driven by the checkbox (max-width: 820px), so it works without JS. */
+.curate-menu { display: flex; align-items: center; flex: none; }
+.curate-menu__checkbox,
+.curate-menu__toggle { display: none; }
+
+/* ---------- Main + page header ---------- */
+.curate-main {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 4rem;
+}
+.curate-page-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1.5rem;
+  margin: 0 0 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--rule);
+}
+.curate-page-title {
+  font-size: 1.75rem;
+  margin: 0;
+}
+.curate-page-sub {
+  margin: 0.3rem 0 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+.curate-page-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+/* ---------- Flash messages ---------- */
+.curate-messages {
+  list-style: none;
+  margin: 0 0 1.5rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.curate-message {
+  padding: 0.7rem 1rem;
+  font-size: 0.9rem;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--muted);
+  border-radius: var(--radius);
+}
+.curate-message--success {
+  border-left-color: var(--success);
+  background: color-mix(in srgb, var(--success) 8%, var(--surface));
+}
+.curate-message--error,
+.curate-message--warning {
+  border-left-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+}
+
+/* ---------- Buttons ---------- */
+.curate-btn {
+  display: inline-block;
+  padding: 0.5rem 1rem;
+  font: inherit;
+  font-size: 0.9rem;
+  background: var(--accent);
+  color: var(--on-accent);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+.curate-btn:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent-soft);
+  border-bottom: 1px solid var(--accent-soft);
+  color: var(--on-accent);
+}
+.curate-btn--ghost {
+  background: transparent;
+  color: var(--ink-soft);
+  border-color: var(--rule);
+}
+.curate-btn--ghost:hover {
+  background: var(--surface);
+  color: var(--ink);
+  border-color: var(--muted);
+}
+
+/* ---------- Filters ---------- */
+.curate-filters {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  padding: 1rem 1.25rem;
+  margin: 0 0 1.5rem;
+}
+.curate-filters__row {
+  display: grid;
+  grid-template-columns: minmax(180px, 2fr) repeat(5, minmax(120px, 1fr));
+  gap: 0.75rem 1rem;
+  align-items: end;
+}
+/* Lookup lists only need search + sort, not the full piece filter set. */
+.curate-filters__row--compact {
+  grid-template-columns: minmax(200px, 2fr) minmax(160px, 1fr);
+}
+/* "More" panel: a separated band of uniform presence dropdowns. */
+.curate-filters__advanced {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px dashed var(--rule);
+}
+.curate-filters__advanced[hidden] { display: none; }
+.curate-filters__advanced .curate-filters__row {
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+}
+.curate-filters__actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+.curate-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+.curate-field--grow { min-width: 200px; }
+.curate-field__label {
+  font-size: 0.72rem;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.curate-field input,
+.curate-field select {
+  font: inherit;
+  font-size: 0.92rem;
+  padding: 0.4rem 0.55rem;
+  background: var(--bg);
+  color: var(--ink);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  width: 100%;
+}
+.curate-field input:focus,
+.curate-field select:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  border-color: var(--accent);
+}
+
+/* ---------- Piece grid ---------- */
+.curate-piece-grid {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 2rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 1.25rem 1rem;
+}
+.curate-piece__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  padding: 0.65rem;
+  color: var(--ink);
+  text-decoration: none;
+  border-bottom: 1px solid var(--rule);
+  transition: border-color 120ms ease;
+}
+.curate-piece__body:hover {
+  border-color: var(--accent-soft);
+  color: var(--ink);
+}
+.curate-piece__thumb {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+/* Fill the square box and letterbox via object-fit, sized off the box's
+   concrete (absolute) dimensions rather than a percentage max-height resolved
+   against the aspect-ratio parent — iOS Safari ignores the latter, so a much-
+   taller-than-wide thumbnail overflowed and was clipped by `overflow: hidden`.
+   `padding` gives the inset the 90% caps used to. (Matches .art-card.) */
+.curate-piece__thumb img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 5%;
+  object-fit: contain;
+}
+.curate-piece__meta { display: flex; flex-direction: column; min-width: 0; }
+.curate-piece__title {
+  font-family: var(--font-serif);
+  font-size: 0.92rem;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.curate-piece__artist {
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+}
+.curate-piece__location {
+  font-size: 0.72rem;
+  color: var(--muted);
+  margin-top: 0.1rem;
+}
+
+/* ---------- Form ---------- */
+.curate-form {
+  max-width: 760px;
+}
+.curate-form__section {
+  margin: 0 0 1.75rem;
+  padding: 1.25rem 1.5rem 1.5rem;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+}
+.curate-form__section legend {
+  padding: 0 0.5rem;
+  margin-left: -0.5rem;
+  font-family: var(--font-serif);
+  font-size: 1rem;
+  color: var(--ink);
+  letter-spacing: 0.01em;
+}
+.curate-form__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin: 0 0 1rem;
+}
+.curate-form__field:last-child { margin-bottom: 0; }
+.curate-form__row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin: 0 0 1rem;
+}
+.curate-form__row--triple { grid-template-columns: 1fr 1fr 1fr; }
+/* Currency only needs ~3 characters, so keep it narrow and let price fill.
+   A touch of slack so the blank "—" / dropdown chevron don't crowd the value. */
+.curate-form__row--price { grid-template-columns: 5rem 1fr; }
+.curate-form__row .curate-form__field { margin: 0; }
+.curate-form__field label,
+.curate-form__check {
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+  letter-spacing: 0.02em;
+}
+.curate-form__field input[type="text"],
+.curate-form__field input[type="number"],
+.curate-form__field input[type="date"],
+.curate-form__field input[type="url"],
+.curate-form__field input[type="email"],
+.curate-form__field input[type="file"],
+.curate-form__field select,
+.curate-form__field textarea {
+  font: inherit;
+  font-size: 0.95rem;
+  padding: 0.5rem 0.65rem;
+  background: var(--bg);
+  color: var(--ink);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  width: 100%;
+}
+/* Native selects render a touch shorter than text inputs; pin a shared control
+   height so a select and an input in the same row line up. */
+.curate-form__field input:not([type='file']),
+.curate-form__field select {
+  height: 2.5rem;
+}
+.curate-form__field textarea {
+  resize: vertical;
+  min-height: 4rem;
+  font-family: var(--font-sans);
+  line-height: 1.45;
+}
+.curate-form__field input:focus,
+.curate-form__field select:focus,
+.curate-form__field textarea:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  border-color: var(--accent);
+}
+.curate-form__field--errored input,
+.curate-form__field--errored select,
+.curate-form__field--errored textarea {
+  border-color: var(--accent);
+}
+.curate-form__field-error {
+  margin: 0;
+  color: var(--accent);
+  font-size: 0.82rem;
+}
+.curate-form__help {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+/* "Private" marker: keeps a field's label and its badge on one line (the field
+   is a flex column, so a bare sibling would otherwise drop below the label). */
+.curate-form__label-row {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+/* The "not shown publicly" badge (purchase price, private notes, documents,
+   artist email). The icon glyph is the PNG's alpha channel used as a mask and
+   tinted with a token colour, so it follows the light-dark() theme — including
+   the manual [data-theme] toggle, which a fixed-colour image swap would miss. */
+.curate-private-badge {
+  display: inline-block;
+  flex: none;
+  width: 0.95rem;
+  height: 0.95rem;
+  vertical-align: -0.15em;
+  background-color: var(--ink-soft);
+  -webkit-mask: url("../icons/private-icon-black.png") center / contain no-repeat;
+  mask: url("../icons/private-icon-black.png") center / contain no-repeat;
+}
+.curate-form__check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.95rem;
+  color: var(--ink);
+}
+.curate-form__check input[type="checkbox"] { width: 1rem; height: 1rem; }
+.curate-form__errors {
+  margin: 0 0 1rem;
+  padding: 0.75rem 1rem;
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  color: var(--accent);
+  font-size: 0.9rem;
+}
+.curate-form__slug {
+  margin: 0 0 1.25rem;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+.curate-form__slug code {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  padding: 0.1rem 0.4rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+}
+.curate-form__stamp {
+  margin: 0 0 1.25rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+.curate-form__actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 0.5rem;
+}
+
+.curate-btn--danger {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+.curate-btn--danger:hover {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--on-accent);
+}
+.curate-btn--ghost-danger {
+  background: transparent;
+  color: var(--accent);
+  border: 1px solid var(--rule);
+}
+.curate-btn--ghost-danger:hover {
+  background: var(--surface);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+/* ---------- Inline-add (FK select + "+ New" button) ---------- */
+.curate-form__inline-add {
+  display: flex;
+  gap: 0.5rem;
+  align-items: stretch;
+}
+.curate-form__inline-add select { flex: 1; min-width: 0; }
+
+.curate-btn--small {
+  padding: 0.3rem 0.65rem;
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+
+/* ---------- Dropzone ---------- */
+.curate-dropzone {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 1.25rem;
+  align-items: start;
+  padding: 1rem;
+  border: 2px dashed var(--rule);
+  border-radius: var(--radius);
+  background: var(--bg);
+  transition: border-color 160ms ease, background 160ms ease;
+}
+.curate-dropzone.is-dragover {
+  border-color: var(--accent);
+  background: var(--surface);
+}
+.curate-dropzone__preview {
+  width: 160px;
+  height: 160px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.curate-dropzone__preview img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+.curate-dropzone__preview:empty::after {
+  content: "no image";
+  color: var(--muted);
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.curate-dropzone__body { display: flex; flex-direction: column; gap: 0.5rem; min-width: 0; }
+.curate-dropzone__hint {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.92rem;
+}
+.curate-dropzone__note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+/* ---------- Modal ---------- */
+.curate-modal { display: none; }
+.curate-modal:not(:empty) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  padding: 2rem 1rem;
+}
+.curate-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: var(--scrim);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  cursor: pointer;
+}
+.curate-modal__panel {
+  position: relative;
+  width: 100%;
+  max-width: 480px;
+  max-height: 90vh;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-modal);
+  padding: 1.25rem 1.5rem 1.5rem;
+}
+.curate-modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 0 1rem;
+}
+.curate-modal__header h2 {
+  font-size: 1.1rem;
+  margin: 0;
+}
+.curate-modal__close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  line-height: 1;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 0.1rem 0.4rem;
+}
+.curate-modal__close:hover { color: var(--accent); }
+.curate-form--modal .curate-form__section { padding: 0; border: none; background: transparent; }
+body.curate-modal-open { overflow: hidden; }
+
+/* ---------- Confirm delete ---------- */
+.curate-confirm {
+  display: flex;
+  gap: 1.5rem;
+  align-items: flex-start;
+  max-width: 640px;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+}
+.curate-confirm__image img {
+  width: 140px;
+  height: 140px;
+  object-fit: contain;
+  background: var(--bg);
+  border-radius: var(--radius-sm);
+}
+.curate-confirm__title {
+  font-size: 1.25rem;
+  margin: 0 0 0.2rem;
+}
+.curate-confirm__byline {
+  margin: 0 0 1rem;
+  color: var(--ink-soft);
+  font-size: 0.92rem;
+}
+
+/* ---------- Table (artist/medium/location lists) ---------- */
+.curate-table-wrap { overflow-x: auto; }
+.curate-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin: 0 0 2rem;
+}
+.curate-table th,
+.curate-table td {
+  padding: 0.65rem 0.85rem;
+  text-align: left;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: middle;
+}
+.curate-table tbody tr:last-child td { border-bottom: none; }
+.curate-table thead th {
+  background: var(--bg);
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  font-weight: 500;
+  border-bottom: 1px solid var(--rule);
+}
+.curate-table tbody tr:hover { background: var(--bg); }
+.curate-table__col-name { width: 60%; }
+.curate-table__col-num {
+  width: 1%;
+  white-space: nowrap;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-soft);
+}
+.curate-table__name {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  color: var(--ink);
+  text-decoration: none;
+  border-bottom: none;
+}
+.curate-table__name:hover { color: var(--accent); border-bottom: none; }
+.curate-table__avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--bg);
+}
+.curate-table__avatar--empty {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--rule);
+  color: var(--muted);
+  font-family: var(--font-serif);
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  line-height: 1;
+}
+/* A normal table cell (not display:flex) so it respects vertical-align:middle
+   and lines up with the name/count; links are spaced with a margin. */
+.curate-table__links { font-size: 0.85rem; }
+.curate-table__links a { color: var(--ink-soft); margin-right: 0.75rem; }
+.curate-table__links a:last-child { margin-right: 0; }
+.curate-table__links a:hover { color: var(--accent); }
+
+.curate-confirm__warning {
+  background: var(--bg);
+  border: 1px solid var(--accent);
+  border-left: 3px solid var(--accent);
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+  margin: 0 0 1rem;
+}
+
+/* ---------- Pagination ---------- */
+.curate-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  margin: 2rem 0 0;
+  font-size: 0.9rem;
+}
+.curate-pagination a { color: var(--ink-soft); }
+.curate-pagination a:hover { color: var(--accent); }
+.curate-pagination__status { color: var(--muted); }
+
+/* ---------- Responsive ---------- */
+@media (max-width: 900px) {
+  /* The six-up filter row can't shrink past its column minimums (~860px) and
+     would run off the card; drop to three columns with Search spanning the row. */
+  .curate-filters__row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .curate-field--grow { grid-column: 1 / -1; }
+}
+
+@media (max-width: 820px) {
+  /* The inline utility links no longer fit beside the nav: collapse them into a
+     tap-to-open hamburger dropdown (driven by the checkbox, so no JS needed).
+     The topbar stays one row — brand + nav + hamburger — until it gets narrow
+     enough for the nav to need its own row (max-width: 560px below). */
+  .curate-menu { position: relative; }
+  /* Hidden but still keyboard-focusable, so Tab + Space opens the menu. */
+  .curate-menu__checkbox {
+    position: absolute;
+    width: 1px; height: 1px;
+    margin: -1px; padding: 0; border: 0;
+    clip: rect(0 0 0 0); clip-path: inset(50%);
+    overflow: hidden; white-space: nowrap;
+  }
+  .curate-menu__toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    margin: -0.4rem 0;          /* the 44px tap target shouldn't grow the row */
+    color: var(--ink-soft);
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+  }
+  .curate-menu__checkbox:checked + .curate-menu__toggle { color: var(--accent); }
+  .curate-menu__checkbox:focus-visible + .curate-menu__toggle {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+  .curate-menu__bars {
+    width: 22px;
+    height: 22px;
+    background: currentColor;
+    -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='black' d='M3 6h18v2H3z M3 11h18v2H3z M3 16h18v2H3z'/></svg>") no-repeat center / contain;
+            mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='black' d='M3 6h18v2H3z M3 11h18v2H3z M3 16h18v2H3z'/></svg>") no-repeat center / contain;
+  }
+
+  /* The meta links become the dropdown panel, shown only when the box is checked. */
+  .curate-topbar__meta {
+    position: absolute;
+    top: calc(100% + 0.4rem);
+    right: 0;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.1rem;
+    min-width: 11rem;
+    padding: 0.35rem;
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow);
+    display: none;
+    z-index: 20;
+  }
+  .curate-menu__checkbox:checked ~ .curate-topbar__meta { display: flex; }
+  /* Comfortable, full-width tap targets stacked in the dropdown. (Leave the
+     theme toggle's own `display` alone so its until-JS `hidden` state holds.) */
+  .curate-topbar__meta a,
+  .curate-topbar__meta .curate-logout__btn {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    padding: 0.55rem 0.6rem;
+    border-radius: var(--radius-sm);
+  }
+  .curate-topbar__meta .theme-toggle { width: 100%; justify-content: flex-start; }
+  .curate-logout { width: 100%; }
+}
+
+@media (max-width: 720px) {
+  .curate-topbar { gap: 0.75rem; padding: 0.75rem 1rem; }
+  .curate-nav { gap: 0.75rem; }
+  .curate-main { padding: 1.5rem 1rem 3rem; }
+  .curate-page-header { flex-direction: column; align-items: flex-start; }
+  .curate-filters__row { grid-template-columns: 1fr 1fr; }
+  .curate-field--grow { grid-column: 1 / -1; }
+}
+
+@media (max-width: 560px) {
+  /* Too narrow for brand + nav + hamburger on one line: wrap the section nav
+     onto its own full-width row 2, leaving brand + hamburger on row 1. */
+  .curate-topbar { flex-wrap: wrap; row-gap: 0.5rem; }
+  .curate-menu { order: 1; margin-left: auto; }
+  .curate-nav { order: 2; flex: 0 0 100%; flex-wrap: wrap; gap: 0.4rem 1.1rem; }
+}
+
+@media (max-width: 640px) {
+  /* Stack the two-up form rows, and stack each FK <select> above its
+     "+ New …" button — side by side they crush the select to a sliver. */
+  .curate-form__row { grid-template-columns: 1fr; gap: 1rem; }
+  .curate-form__inline-add { flex-direction: column; align-items: stretch; }
+
+  /* Image picker: preview above the controls so "Choose File" isn't clipped. */
+  .curate-dropzone { grid-template-columns: 1fr; gap: 1rem; }
+
+  /* Confirm-delete: thumbnail above the text rather than beside it. */
+  .curate-confirm { flex-direction: column; gap: 1rem; }
+
+  .curate-form__section { padding: 1rem 1.1rem 1.25rem; }
+
+  /* Let list tables breathe: tighter cells and wrapping link lists keep
+     them inside narrow screens; .curate-table-wrap scrolls if they can't. */
+  .curate-table th,
+  .curate-table td { padding: 0.55rem 0.6rem; }
+}
+
+/* ---------- Login ---------- */
+.curate-login-body {
+  display: flex;
+  min-height: 100vh;
+  min-height: 100dvh;  /* iOS: 100vh is the toolbar-hidden height, so the box
+                          centers low / under the toolbar; dvh tracks the
+                          visible viewport (vh kept above as the fallback). */
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1.5rem;
+}
+.curate-login {
+  width: 100%;
+  max-width: 360px;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 2.5rem 2rem;
+  text-align: center;
+}
+.curate-login__brand {
+  font-family: var(--font-serif);
+  font-size: 1.5rem;
+  color: var(--ink);
+  border-bottom: none;
+}
+.curate-login__brand:hover { color: var(--accent); border-bottom: none; }
+.curate-login__error {
+  margin: 0;
+  padding: 0.6rem 0.8rem;
+  font-size: 0.88rem;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  border-radius: var(--radius);
+}
+.curate-login__form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  text-align: left;
+}
+.curate-login__form .curate-form__field { margin: 0; }
+.curate-login__form input[type="text"],
+.curate-login__form input[type="password"] {
+  width: 100%;
+  padding: 0.55rem 0.7rem;
+  font: inherit;
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+}
+.curate-login__form input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.curate-login__submit {
+  margin-top: 0.25rem;
+  width: 100%;
+  text-align: center;
+}
+.curate-login__back {
+  font-size: 0.85rem;
+  color: var(--muted);
+  border-bottom: none;
+}
+.curate-login__back:hover { color: var(--accent); border-bottom: none; }
+
+/* ---------- Documents (staff-only piece attachments) ---------- */
+/* The Documents fieldset is a normal .curate-form__section (placed between Notes
+   and Status); its add/remove controls submit standalone forms via the HTML
+   form= attribute, so they stay instant without nesting forms in the piece form. */
+.curate-documents__note,
+.curate-documents__empty {
+  margin: 0 0 1rem;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+.curate-documents__list {
+  list-style: none;
+  margin: 0 0 1rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.curate-documents__item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--bg);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+}
+.curate-documents__link {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex: 1;
+  min-width: 0;
+  color: var(--ink);
+}
+.curate-documents__link:hover { color: var(--accent); }
+.curate-documents__preview {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.curate-documents__preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.curate-documents__ext {
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+.curate-documents__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.9rem;
+}
+.curate-documents__meta {
+  flex-shrink: 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+}
+.curate-documents__download,
+.curate-documents__remove { flex-shrink: 0; }
+.curate-documents__add {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* Document rows on phones: on one line the filename is crushed to a couple of
+   characters. Give the preview + name their own full-width row and let the
+   meta + Download + Remove wrap below. (Placed after the base rules above so
+   the `flex` override wins the cascade at equal specificity.) */
+@media (max-width: 640px) {
+  .curate-documents__item { flex-wrap: wrap; }
+  .curate-documents__link { flex: 1 0 100%; }
+}
+
+/* Touch devices: enlarge the smallest controls toward the ~44px tap target
+   (small buttons like Download/Remove/"+ New …", and the pagination links). */
+@media (pointer: coarse) {
+  .curate-btn--small,
+  .curate-pagination a {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  /* iOS Safari zooms the page when focusing a field whose font-size is < 16px.
+     Pin these (filter bar 0.92rem, forms 0.95rem) to 16px on touch so tapping a
+     field doesn't jolt the viewport into a zoomed state. The `input[type]` form
+     matches the specificity of the typed-input rules above (0.95rem) so it wins
+     the cascade; bare `input` would lose. */
+  .curate-field input,
+  .curate-field select,
+  .curate-form__field input[type],
+  .curate-form__field select,
+  .curate-form__field textarea {
+    font-size: 16px;
+  }
+}

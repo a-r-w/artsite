@@ -1,0 +1,48 @@
+[Unit]
+Description=Django art gallery application
+After=artsite-db.service
+Requires=artsite-db.service
+
+[Container]
+Image=localhost/artsite:latest
+ContainerName=artsite
+Network=artsite.network
+# Loopback only: the host Caddy proxies via localhost:8000, so nothing else needs
+# this port. Publishing on all interfaces (0.0.0.0) would let a LAN client reach
+# gunicorn directly, bypass Caddy, and spoof X-Forwarded-For to dodge or weaponise
+# the login rate-limiter (art.ratelimit.client_ip trusts the proxy-appended hop).
+PublishPort=127.0.0.1:8000:8000
+EnvironmentFile=%h/.config/artsite/artsite.env
+Environment=ENVIRONMENT=production
+# This self-hosted deployment stores media on the local filesystem (see
+# STORAGE_BACKEND in settings.py). To deploy against Google Cloud Storage
+# instead, set STORAGE_BACKEND=gcs, drop the media Volume below, and mount a
+# service-account key with GOOGLE_APPLICATION_CREDENTIALS pointing at it.
+Environment=STORAGE_BACKEND=local
+Environment=MEDIA_ROOT=/data/media/
+Environment=PRIVATE_MEDIA_ROOT=/data/private/
+# Uploaded images + generated thumbnails. Point the host side at your NAS mount.
+# Shared SELinux label (:z, lowercase) so a media-serving Caddy on the host can
+# also read it; must be writable by this container's user. See the rootless
+# UID/permission notes in deploy/SELF_HOSTING.md.
+Volume=/srv/artsite/media:/data/media:z
+# Staff-only documents (receipts, valuations, …). A SEPARATE host path that Caddy
+# must NOT serve — do not add a /media/-style route for it. :Z (private label)
+# since only this container touches it; back it up like the database.
+Volume=/srv/artsite/private:/data/private:Z
+HealthCmd=curl -f http://localhost:8000/healthz/ || exit 1
+HealthInterval=30s
+HealthTimeout=10s
+HealthRetries=3
+HealthStartPeriod=30s
+
+# Run migrations before starting the app. Gunicorn sizing/recycling lives in
+# gunicorn.conf.py (env-driven; override GUNICORN_WORKERS etc. in artsite.env).
+Exec=sh -c "python manage.py migrate --noinput && gunicorn -c gunicorn.conf.py artsite.wsgi"
+
+[Service]
+Restart=always
+TimeoutStartSec=300
+
+[Install]
+WantedBy=default.target

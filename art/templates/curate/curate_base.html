@@ -1,0 +1,63 @@
+{% load static %}<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="theme-color" content="#1c1c1c">
+  {% include "art/_favicons.html" %}
+  {% include "art/_theme-init.html" %}
+  <link rel="stylesheet" href="{% static 'art/css/normalize.css' %}">
+  <link rel="stylesheet" href="{% static 'art/css/art.css' %}">
+  <link rel="stylesheet" href="{% static 'art/css/curate.css' %}">
+  {% block extra_css %}{% endblock %}
+  <title>{% block head_title %}Curate{% endblock %} · {{ site_name }}</title>
+</head>
+<body class="curate-body">
+  <header class="curate-topbar">
+    <a class="curate-brand" href="{% url 'art:index' %}" title="View public site">{{ site_name }}</a>
+    <nav class="curate-nav" aria-label="Curate sections">
+      <a href="{% url 'art:curate:piece-list' %}" {% if active == 'pieces' %}aria-current="page"{% endif %}>Pieces</a>
+      <a href="{% url 'art:curate:artist-list' %}" {% if active == 'artists' %}aria-current="page"{% endif %}>Artists</a>
+      <a href="{% url 'art:curate:medium-list' %}" {% if active == 'mediums' %}aria-current="page"{% endif %}>Mediums</a>
+      <a href="{% url 'art:curate:location-list' %}" {% if active == 'locations' %}aria-current="page"{% endif %}>Locations</a>
+    </nav>
+    <div class="curate-menu">
+      <input type="checkbox" id="curate-menu-toggle" class="curate-menu__checkbox" aria-label="Account and settings menu">
+      <label for="curate-menu-toggle" class="curate-menu__toggle" aria-hidden="true">
+        <span class="curate-menu__bars"></span>
+      </label>
+      <div class="curate-topbar__meta">
+        {% include "art/_theme-toggle.html" %}
+        <a href="{% url 'art:curate:settings' %}" {% if active == 'settings' %}aria-current="page"{% endif %}>Settings</a>
+        <a href="{% url 'art:index' %}" title="Public site">View site →</a>
+        <form class="curate-logout" method="post" action="{% url 'art:curate:logout' %}">
+          {% csrf_token %}
+          <button type="submit" class="curate-logout__btn">Sign out</button>
+        </form>
+      </div>
+    </div>
+  </header>
+
+  <main class="curate-main">
+    {% include "art/_messages.html" with prefix="curate" %}
+    <header class="curate-page-header">
+      <div>
+        <h1 class="curate-page-title">{% block page_title %}{% endblock %}</h1>
+        {% block page_sub %}{% endblock %}
+      </div>
+      <div class="curate-page-actions">{% block page_actions %}{% endblock %}</div>
+    </header>
+    {% block content %}{% endblock %}
+  </main>
+
+  <div id="curate-modal" class="curate-modal"></div>
+
+  <script src="{% static 'art/js/htmx.min.js' %}" defer></script>
+  <script src="{% static 'art/js/curate.js' %}" defer></script>
+  <script src="{% static 'art/js/theme.js' %}" defer></script>
+  {% include "art/_lazy_image_loader.html" %}
+
+  {% block extra_js %}{% endblock %}
+</body>
+</html>

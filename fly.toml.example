@@ -1,0 +1,79 @@
+# Fly.io deployment template. Copy to fly.toml (gitignored) and fill in your
+# app name, region, GCS bucket/project, and public hostname(s), then:
+#
+#   fly launch --copy-config --no-deploy   # first time: creates the app
+#   fly secrets set DJANGO_SECRET_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(50))')"
+#   fly secrets set GCS_CREDENTIALS="$(base64 < your-gcs-key.json)"
+#   fly deploy
+#
+# See https://fly.io/docs/reference/configuration/ for all options.
+
+app = "your-app-name"
+primary_region = "sjc"  # pick one near you: fly platform regions
+# SIGTERM is gunicorn's GRACEFUL shutdown — it stops accepting new connections and
+# lets in-flight requests finish (up to its --graceful-timeout, default 30s). SIGINT
+# is the fast/non-draining stop, which dropped in-flight requests on every deploy.
+kill_signal = "SIGTERM"
+# Give gunicorn time to drain before Fly hard-kills the machine (must exceed the
+# 30s graceful-timeout).
+kill_timeout = "45s"
+
+[experimental]
+  auto_rollback = true
+
+[deploy]
+  release_command = "python manage.py migrate --noinput"
+
+[env]
+  ENVIRONMENT = "production"
+  STORAGE_BACKEND = "gcs"
+  # GCS bucket + project for the media backend (read by settings.py). The
+  # in-bucket prefix defaults to "art" in production; override with GS_LOCATION.
+  GS_BUCKET_NAME = "your-gcs-bucket"
+  GS_PROJECT_ID = "your-gcp-project"
+  # Public hostname(s) served by this app (comma-separated, no scheme/port).
+  # localhost is always allowed in-app for the healthcheck; CSRF trusted origins
+  # default to https://<each-host>.
+  ALLOWED_HOSTS = "your-app-name.fly.dev"
+  # GCS credentials are written from a Fly secret (NOT baked into the image).
+  # One-time setup: fly secrets set GCS_CREDENTIALS="$(base64 < your-gcs-key.json)"
+  GOOGLE_APPLICATION_CREDENTIALS = "/djangoapp/gcs-credentials.json"
+  PORT = "8000"
+
+# Mounts the GCS_CREDENTIALS secret (base64-decoded) at the path above, so the
+# service-account key never lives in the image or the repo.
+[[files]]
+  guest_path = "/djangoapp/gcs-credentials.json"
+  secret_name = "GCS_CREDENTIALS"
+
+# Pin a memory floor: the default 256MB machine OOM-ed when concurrent detail
+# views decoded full-resolution images. 512MB gives image work headroom; bump it
+# (or scale up) for a larger collection / more traffic.
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory = "512mb"
+
+[[services]]
+  protocol = "tcp"
+  internal_port = 8000
+  processes = ["app"]
+
+  [[services.ports]]
+    port = 80
+    handlers = ["http"]
+    force_https = true
+
+  [[services.ports]]
+    port = 443
+    handlers = ["tls", "http"]
+  [services.concurrency]
+    type = "connections"
+    hard_limit = 25
+    soft_limit = 20
+
+  [[services.tcp_checks]]
+    interval = "15s"
+    timeout = "2s"
+    grace_period = "1s"
+    restart_limit = 0

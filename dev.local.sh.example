@@ -1,0 +1,12 @@
+# Personal dev overrides. Copy to dev.local.sh (gitignored) and uncomment/edit.
+# Sourced by dev.sh BEFORE the local-filesystem + SQLite defaults, so whatever
+# you set here wins. `$here` is the repo directory.
+#
+# Example: develop against Google Cloud Storage + a local Postgres instead of
+# the default local filesystem + SQLite.
+#
+# export STORAGE_BACKEND="gcs"
+# export GS_BUCKET_NAME="your-bucket"
+# export GS_PROJECT_ID="your-gcp-project"
+# export GOOGLE_APPLICATION_CREDENTIALS="$here/your-gcs-key.json"
+# export DATABASE_URL="postgres://localhost/artsite"

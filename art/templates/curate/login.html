@@ -1,0 +1,43 @@
+{% load static %}<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="theme-color" content="#1c1c1c">
+  {% include "art/_theme-init.html" %}
+  <link rel="stylesheet" href="{% static 'art/css/normalize.css' %}">
+  <link rel="stylesheet" href="{% static 'art/css/art.css' %}">
+  <link rel="stylesheet" href="{% static 'art/css/curate.css' %}">
+  <title>Sign in · {{ site_name }}</title>
+</head>
+<body class="curate-body curate-login-body">
+  <main class="curate-login">
+    <a class="curate-login__brand" href="{% url 'art:index' %}">
+      Curate <span class="curate-brand__sub">{{ site_name }}</span>
+    </a>
+
+    {% if form.errors %}
+      <p class="curate-login__error" role="alert">
+        That username and password didn’t match. Please try again.
+      </p>
+    {% endif %}
+
+    <form method="post" class="curate-login__form" action="{% url 'art:curate:login' %}">
+      {% csrf_token %}
+      <div class="curate-form__field {% if form.username.errors %}curate-form__field--errored{% endif %}">
+        <label for="{{ form.username.id_for_label }}">Username</label>
+        {{ form.username }}
+      </div>
+      <div class="curate-form__field {% if form.password.errors %}curate-form__field--errored{% endif %}">
+        <label for="{{ form.password.id_for_label }}">Password</label>
+        {{ form.password }}
+      </div>
+      <button type="submit" class="curate-btn curate-login__submit">Sign in</button>
+      <input type="hidden" name="next" value="{{ next }}">
+    </form>
+
+    <a class="curate-login__back" href="{% url 'art:index' %}">← Back to the collection</a>
+  </main>
+</body>
+</html>

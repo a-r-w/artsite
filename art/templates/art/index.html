@@ -1,0 +1,19 @@
+{% extends "art/base.html" %}
+
+{% block head_title %}{{ site_name }}{% endblock %}
+{% block meta_description %}Browse the full art collection.{% endblock %}
+
+{% block content %}
+  {% include "art/index-header.html" %}
+
+  {% if piece_list %}
+    <p class="page-meta">{{ piece_list|length }} piece{{ piece_list|length|pluralize }}</p>
+    <ul class="art-grid">
+      {% for piece in piece_list %}
+        <li>{% include "art/index-thumbnail.html" %}</li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="empty">No pieces yet.</p>
+  {% endif %}
+{% endblock %}

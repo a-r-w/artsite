@@ -1,0 +1,46 @@
+*.pyc
+*.pyo
+*.mo
+*.db
+*.css.map
+*.egg-info
+*.sql.gz
+.cache
+.project
+.idea
+.pydevproject
+.DS_Store
+.git/
+.sass-cache
+.vagrant/
+__pycache__
+dist
+docs
+env
+logs
+Dockerfile
+venv
+LOCAL_ENV_*
+.dockerignore*
+
+# Never bake secrets or data dumps into the image (COPY . copies the whole
+# build context). The GCS service-account key is provided at runtime instead
+# (a mounted volume for podman, a Fly secret for Fly).
+*-credentials.json
+*.json
+*.pg
+*.dump
+backups/
+# Runtime config + local data — must not end up in the image. .env holds the
+# compose secrets; media/private/db are bind-mounted volumes at runtime.
+.env
+.env.*
+dev.local.sh
+*.sqlite3
+media/
+private/
+staticfiles/
+
+# Per-OS virtualenvs (the existing `venv`/`env` lines cover the Mac venv)
+.venv-linux
+.venv*

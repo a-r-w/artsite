@@ -1,0 +1,43 @@
+#overlay {
+  background-color: var(--scrim-strong);
+  cursor: zoom-out;
+  width: 100%;
+  height: 100%;
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  visibility: hidden;
+  opacity: 0;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  transition: visibility 0s linear 260ms,
+              opacity 260ms ease,
+              backdrop-filter 260ms ease;
+}
+
+#overlay.show {
+  visibility: visible;
+  opacity: 1;
+  transition: visibility 0s linear 0s,
+              opacity 260ms ease,
+              backdrop-filter 260ms ease;
+}
+
+#overlay img {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  max-width: 95%;
+  max-height: 95%;
+  transform: translate(-50%, -50%) scale(0.985);
+  opacity: 0;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lightbox);
+  transition: transform 280ms cubic-bezier(.2,.7,.2,1),
+              opacity 220ms ease;
+}
+
+#overlay.show img {
+  transform: translate(-50%, -50%) scale(1);
+  opacity: 1;
+}

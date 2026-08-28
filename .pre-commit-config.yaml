@@ -1,0 +1,10 @@
+# Optional but recommended: `pip install pre-commit && pre-commit install`,
+# then ruff lint + format run automatically on every commit, matching CI.
+# Keep `rev` in sync with the pinned ruff in requirements-dev.txt.
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.15
+    hooks:
+      - id: ruff # lint (auto-fixes what it safely can)
+        args: [--fix]
+      - id: ruff-format

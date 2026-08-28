@@ -1,0 +1,14 @@
+# Dev/test-only dependencies (not installed in prod).
+# Install into the platform venv on top of requirements.txt, e.g.:
+#   uv pip install -r requirements-dev.txt --python .venv-linux/bin/python
+#
+# Run the suite (SQLite, no Mac Postgres needed):
+#   python manage.py test --settings=artsite.settings_test
+# With coverage:
+#   coverage run manage.py test --settings=artsite.settings_test && coverage report
+
+coverage
+# Pinned so `ruff format --check` is deterministic across dev machines and CI
+# (an unpinned ruff can reformat differently and turn CI red). Keep this in sync
+# with the rev in .pre-commit-config.yaml; Dependabot bumps both together.
+ruff==0.15.15

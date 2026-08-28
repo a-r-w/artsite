@@ -1,0 +1,20 @@
+version: 2
+updates:
+  # Python deps. Dependabot bumps the pinned versions in requirements.txt /
+  # requirements-dev.txt; after merging a runtime bump, re-run
+  #   uv pip compile requirements.in -o requirements.txt --python-version 3.12
+  # to keep the lock file consistent with requirements.in.
+  - package-ecosystem: pip
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      python-deps:
+        patterns: ["*"]
+
+  # Keep the SHA-pinned actions in .github/workflows/ up to date.
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly

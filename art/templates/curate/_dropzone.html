@@ -1,0 +1,32 @@
+{% comment %}
+Shared image dropzone for the curate piece/artist forms. Parameters:
+  field    — the bound file field (form.image / form.portrait)
+  current  — the stored file (form.instance.image / .portrait), for the thumbnail
+  unsaved  — form.unsaved_image: an upload an invalid submit dropped (prompt re-select)
+  noun     — "image" / "portrait", woven into the prose
+  legend   — the fieldset legend text
+{% endcomment %}
+{% load thumbnail %}
+<fieldset class="curate-form__section">
+  <legend>{{ legend }}</legend>
+  <div class="curate-dropzone" data-dropzone>
+    <div class="curate-dropzone__preview" data-dropzone-preview>
+      {% if unsaved %}
+        <p class="curate-form__field-error" role="alert">⚠ Re-select your {{ noun }} — it wasn’t saved with the rest of the form.</p>
+      {% elif current %}
+        <img src="{{ current|thumbnail_url:'thumb' }}"
+             alt="Current {{ noun }}" width="160" height="160">
+      {% endif %}
+    </div>
+    <div class="curate-dropzone__body">
+      <p class="curate-dropzone__hint">Drag &amp; drop an image, or</p>
+      <div class="curate-form__field{% if field.errors %} curate-form__field--errored{% endif %}">
+        {{ field }}
+        {% if field.errors %}<p class="curate-form__field-error">{{ field.errors|join:" " }}</p>{% endif %}
+      </div>
+      {% if current %}
+        <p class="curate-dropzone__note">Uploading a new file replaces the current {{ noun }}.</p>
+      {% endif %}
+    </div>
+  </div>
+</fieldset>

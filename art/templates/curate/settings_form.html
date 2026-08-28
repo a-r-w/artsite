@@ -1,0 +1,40 @@
+{% extends "curate/curate_base.html" %}
+
+{% block head_title %}Settings{% endblock %}
+{% block page_title %}Settings{% endblock %}
+{% block page_sub %}
+  <p class="curate-page-sub">Names and copy shown across the public site and this admin.</p>
+{% endblock %}
+
+{% block content %}
+  <form class="curate-form" method="post" novalidate>
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+      <div class="curate-form__errors" role="alert">{{ form.non_field_errors }}</div>
+    {% endif %}
+
+    <fieldset class="curate-form__section">
+      <legend>Site</legend>
+      {% include "curate/_field.html" with field=form.site_name %}
+      {% include "curate/_field.html" with field=form.footer_text %}
+    </fieldset>
+
+    <fieldset class="curate-form__section">
+      <legend>Public display</legend>
+      {% include "curate/_field.html" with field=form.public_sort %}
+    </fieldset>
+
+    <fieldset class="curate-form__section">
+      <legend>New piece defaults</legend>
+      <div class="curate-form__row">
+        {% include "curate/_field.html" with field=form.default_currency %}
+        {% include "curate/_field.html" with field=form.default_dimension_unit %}
+      </div>
+    </fieldset>
+
+    <div class="curate-form__actions">
+      <button type="submit" class="curate-btn">Save settings</button>
+    </div>
+  </form>
+{% endblock %}

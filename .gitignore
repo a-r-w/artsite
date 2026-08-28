@@ -1,0 +1,51 @@
+# Secrets and credentials — never commit keys, certs, or env files.
+*.json
+!package.json
+*.key
+*.pem
+*.crt
+*.pfx
+.env
+.env.*
+!.env.example
+deploy/artsite.env
+dev.local.sh
+
+# Your Fly.io deployment config (copy fly.toml.example and fill in your values).
+fly.toml
+
+# Python
+__pycache__/
+.ruff_cache/
+*.py[cod]
+*.egg-info/
+.eggs/
+dist/
+build/
+*.egg
+
+# Django
+*.log
+local_settings.py
+db.sqlite3
+staticfiles/
+# Local-backend media roots (uploads + staff documents) — never commit a
+# collection's images. The container/NAS paths live outside the repo.
+media/
+private/
+
+# Virtual environment
+venv/
+.venv/
+.venv-linux/
+ENV/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,19 @@
+{% comment %}
+Fade images in once they're ready: add `is-loaded` to each fade-eligible image
+(lazy thumbnails site-wide, plus the [data-fade] detail hero) when it has
+finished (or already finished) loading, or on error so a broken image doesn't
+stay hidden. Included inline (not deferred) by both base templates so it runs at
+parse time against the markup above it. The <noscript> net keeps images visible
+when JS is off (they start at opacity:0 for the fade).
+{% endcomment %}
+<noscript><style>img[loading="lazy"], img[data-fade] { opacity: 1; }</style></noscript>
+<script nonce="{{ request.csp_nonce }}">
+  document.querySelectorAll('img[loading="lazy"], img[data-fade]').forEach(function (img) {
+    if (img.complete && img.naturalWidth > 0) {
+      img.classList.add('is-loaded');
+    } else {
+      img.addEventListener('load', function () { img.classList.add('is-loaded'); }, { once: true });
+      img.addEventListener('error', function () { img.classList.add('is-loaded'); }, { once: true });
+    }
+  });
+</script>

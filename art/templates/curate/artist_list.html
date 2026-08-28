@@ -1,0 +1,54 @@
+{% extends "curate/curate_base.html" %}
+{% load thumbnail %}
+
+{% block head_title %}Artists{% endblock %}
+{% block page_title %}Artists{% endblock %}
+{% block page_sub %}
+  <p class="curate-page-sub">{{ paginator.count }} {% if is_filtered %}matching · filtered{% else %}total{% endif %}</p>
+{% endblock %}
+{% block page_actions %}
+  <a class="curate-btn" href="{% url 'art:curate:artist-add' %}">+ New artist</a>
+{% endblock %}
+
+{% block content %}
+  {% include "curate/_list_controls.html" with search_placeholder="artist name" %}
+  {% if artists %}
+    <div class="curate-table-wrap">
+    <table class="curate-table">
+      <thead>
+        <tr>
+          <th class="curate-table__col-name">Name</th>
+          <th class="curate-table__col-num">Pieces</th>
+          <th>Links</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for artist in artists %}
+          <tr>
+            <td>
+              <a class="curate-table__name" href="{% url 'art:curate:artist-edit' pk=artist.id %}">
+                {% if artist.portrait %}
+                  <img class="curate-table__avatar"
+                       src="{{ artist.portrait|thumbnail_url:'thumb' }}" alt=""
+                       width="36" height="36" loading="lazy" decoding="async">
+                {% else %}
+                  <span class="curate-table__avatar curate-table__avatar--empty" aria-hidden="true">{{ artist.name|slice:":1" }}</span>
+                {% endif %}
+                <span>{{ artist.name }}</span>
+              </a>
+            </td>
+            <td class="curate-table__col-num">{{ artist.piece_count }}</td>
+            <td class="curate-table__links">
+              {% if artist.website %}<a href="{{ artist.website }}" target="_blank" rel="noopener">Website</a>{% endif %}
+              {% if artist.instagram %}<a href="{{ artist.instagram }}" target="_blank" rel="noopener">Instagram</a>{% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    {% include "curate/_pagination.html" %}
+  {% else %}
+    <p class="empty">{% if is_filtered %}No artists match your search.{% else %}No artists yet.{% endif %}</p>
+  {% endif %}
+{% endblock %}

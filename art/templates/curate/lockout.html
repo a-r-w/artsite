@@ -1,0 +1,29 @@
+{% load static %}<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="theme-color" content="#1c1c1c">
+  {% include "art/_theme-init.html" %}
+  <link rel="stylesheet" href="{% static 'art/css/normalize.css' %}">
+  <link rel="stylesheet" href="{% static 'art/css/art.css' %}">
+  <link rel="stylesheet" href="{% static 'art/css/curate.css' %}">
+  <title>Locked out · {{ site_name }}</title>
+</head>
+<body class="curate-body curate-login-body">
+  <main class="curate-login">
+    <a class="curate-login__brand" href="{% url 'art:index' %}">
+      Curate <span class="curate-brand__sub">{{ site_name }}</span>
+    </a>
+
+    {# Wording mirrors AXES_COOLOFF_TIME in settings.py — keep in sync. #}
+    <p class="curate-login__error" role="alert">
+      Too many failed sign-in attempts. For security, sign-in has been locked for
+      about 30&nbsp;minutes. Please wait and try again.
+    </p>
+
+    <a class="curate-login__back" href="{% url 'art:index' %}">← Back to the collection</a>
+  </main>
+</body>
+</html>

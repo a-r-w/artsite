@@ -1,0 +1,30 @@
+{% extends "curate/curate_base.html" %}
+
+{% block head_title %}Delete “{{ object_label }}”{% endblock %}
+{% block page_title %}Delete{% endblock %}
+
+{% block content %}
+  <div class="curate-confirm">
+    <div class="curate-confirm__body">
+      <h2 class="curate-confirm__title">“{{ object_label }}”</h2>
+      {% if piece_count > 0 %}
+        <p class="curate-confirm__warning">
+          <strong>Can’t delete this.</strong> {{ piece_count }} piece{{ piece_count|pluralize }}
+          still reference{{ piece_count|pluralize:"s," }} it. Reassign
+          {{ piece_count|pluralize:"that piece,those pieces" }} to another
+          {{ label }} first, then delete this one.
+        </p>
+        <form class="curate-form__actions">
+          <a class="curate-btn curate-btn--ghost" href="{{ back_url }}">Back</a>
+        </form>
+      {% else %}
+        <p>Nothing currently references this record. <strong>This cannot be undone.</strong></p>
+        <form method="post" class="curate-form__actions">
+          {% csrf_token %}
+          <button type="submit" class="curate-btn curate-btn--danger">Delete</button>
+          <a class="curate-btn curate-btn--ghost" href="{{ back_url }}">Cancel</a>
+        </form>
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}

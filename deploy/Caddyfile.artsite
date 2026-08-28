@@ -1,0 +1,27 @@
+# Caddy reverse proxy configuration for artsite. Replace art.example.com with
+# your domain, and include this from your main Caddyfile with:
+#   import /path/to/Caddyfile.artsite
+#
+# Caddy provisions HTTPS for the domain automatically. With the local storage
+# backend, uploaded media is served directly from disk (bypassing gunicorn);
+# everything else is proxied to the app. Point the media root at the SAME host
+# path the artsite.container mounts at /data/media (your NAS mount). Caddy must
+# have read access to it — see deploy/SELF_HOSTING.md for the rootless podman
+# UID/permission notes. file_server does not list directories, so the media
+# folder is not browsable.
+#
+# (For a GCS-backed deployment there is nothing to serve here — drop the
+# handle_path block; images are fetched from the bucket directly.)
+
+art.example.com {
+	handle_path /media/* {
+		root * /srv/artsite/media
+		file_server
+	}
+	# Login rate-limiting (art.ratelimit.client_ip) trusts the RIGHT-MOST
+	# X-Forwarded-For entry as the real client — spoof-safe only while Caddy is
+	# the single appending proxy (its default). If you put a CDN/WAF in front, or
+	# set `trusted_proxies` so Caddy forwards a client-supplied value, update
+	# art/ratelimit.py or the per-IP login lockout becomes bypassable.
+	reverse_proxy localhost:8000
+}

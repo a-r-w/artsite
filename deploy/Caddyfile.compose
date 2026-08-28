@@ -1,0 +1,11 @@
+# Caddyfile for the docker-compose deployment. Caddy provisions HTTPS for
+# $DOMAIN automatically (Let's Encrypt for a real domain; a local CA for
+# localhost). Media is served straight from the shared volume; everything else
+# is proxied to the app. $DOMAIN comes from .env (compose passes it through).
+{$DOMAIN} {
+	handle_path /media/* {
+		root * /srv/media
+		file_server
+	}
+	reverse_proxy app:8000
+}

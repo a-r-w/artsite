@@ -1,0 +1,25 @@
+{% comment %}
+Search + sort bar for the lookup lists (artists / mediums / locations).
+Expects: q, sort_options, selected_sort, and `search_placeholder` (via `with`).
+Reset returns to the bare list path.
+{% endcomment %}
+<form class="curate-filters" method="get" action="">
+  <div class="curate-filters__row curate-filters__row--compact">
+    <label class="curate-field curate-field--grow">
+      <span class="curate-field__label">Search</span>
+      <input type="search" name="q" value="{{ q }}" placeholder="{{ search_placeholder }}">
+    </label>
+    <label class="curate-field">
+      <span class="curate-field__label">Sort</span>
+      <select name="sort">
+        {% for value, label in sort_options %}
+          <option value="{{ value }}" {% if selected_sort == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+  </div>
+  <div class="curate-filters__actions">
+    <button type="submit" class="curate-btn">Apply</button>
+    <a class="curate-btn curate-btn--ghost" href="{{ request.path }}">Reset</a>
+  </div>
+</form>

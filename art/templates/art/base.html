@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="{% block meta_description %}A personal art collection.{% endblock %}">
+  <meta name="theme-color" content="#1c1c1c">
+  {% include "art/_favicons.html" %}
+  {% include "art/_theme-init.html" %}
+  <meta property="og:title" content="{% block og_title %}{{ site_name }}{% endblock %}">
+  <meta property="og:description" content="{% block og_description %}A personal art collection.{% endblock %}">
+  <meta property="og:type" content="{% block og_type %}website{% endblock %}">
+  {% block og_extra %}{% endblock %}
+  {% load static %}
+  <link rel="stylesheet" href="{% static 'art/css/normalize.css' %}">
+  <link rel="stylesheet" href="{% static 'art/css/art.css' %}">
+  {% block extra_css %}{% endblock %}
+  <title>{% block head_title %}{{ site_name }}{% endblock %}</title>
+</head>
+<body>
+  {% block site_header %}
+    <header class="site-header">
+      <a class="site-title" href="{% url 'art:index' %}">{% block site_title %}{{ site_name }}{% endblock %}</a>
+    </header>
+  {% endblock %}
+
+  <main class="site-main">
+    {% include "art/_messages.html" with prefix="site" %}
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="site-footer">
+    <p>{{ site_footer }} · <a href="{% url 'art:curate:home' %}">Curate</a></p>
+    {% include "art/_theme-toggle.html" %}
+  </footer>
+
+  {% include "art/_lazy_image_loader.html" %}
+  <script src="{% static 'art/js/theme.js' %}" defer></script>
+
+  {% block extra_js %}{% endblock %}
+</body>
+</html>

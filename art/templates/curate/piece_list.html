@@ -1,0 +1,113 @@
+{% extends "curate/curate_base.html" %}
+{% load thumbnail %}
+
+{% block head_title %}Pieces{% endblock %}
+{% block page_title %}Pieces{% endblock %}
+{% block page_sub %}
+  <p class="curate-page-sub">{{ paginator.count }} {% if is_filtered %}matching · filtered{% else %}total{% endif %}</p>
+{% endblock %}
+{% block page_actions %}
+  <a class="curate-btn" href="{% url 'art:curate:piece-add' %}">+ Add piece</a>
+{% endblock %}
+
+{% block content %}
+  <form class="curate-filters" method="get" action="">
+    <div class="curate-filters__row">
+      <label class="curate-field curate-field--grow">
+        <span class="curate-field__label">Search</span>
+        <input type="search" name="q" value="{{ q }}" placeholder="title, artist, notes">
+      </label>
+      <label class="curate-field">
+        <span class="curate-field__label">Artist</span>
+        <select name="artist">
+          <option value="">All</option>
+          {% for artist in artists %}
+            <option value="{{ artist.id }}" {% if selected_artist == artist.id|stringformat:'s' %}selected{% endif %}>{{ artist.name }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label class="curate-field">
+        <span class="curate-field__label">Location</span>
+        <select name="location">
+          <option value="">All</option>
+          {% for location in locations %}
+            <option value="{{ location.id }}" {% if selected_location == location.id|stringformat:'s' %}selected{% endif %}>{{ location.description }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label class="curate-field">
+        <span class="curate-field__label">Medium</span>
+        <select name="medium">
+          <option value="">All</option>
+          {% for medium in mediums %}
+            <option value="{{ medium.id }}" {% if selected_medium == medium.id|stringformat:'s' %}selected{% endif %}>{{ medium.description }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label class="curate-field">
+        <span class="curate-field__label">Tagged</span>
+        <select name="tagged">
+          <option value="" {% if not selected_tagged %}selected{% endif %}>Any</option>
+          <option value="yes" {% if selected_tagged == 'yes' %}selected{% endif %}>Tagged</option>
+          <option value="no" {% if selected_tagged == 'no' %}selected{% endif %}>Untagged</option>
+        </select>
+      </label>
+      <label class="curate-field">
+        <span class="curate-field__label">Sort</span>
+        <select name="sort">
+          {% for value, label in sort_options %}
+            <option value="{{ value }}" {% if selected_sort == value %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </label>
+    </div>
+    <div class="curate-filters__advanced" id="advanced-filters" {% if not advanced_active %}hidden{% endif %}>
+      <div class="curate-filters__row">
+        {% for f in presence_filters %}
+          <label class="curate-field">
+            <span class="curate-field__label">{{ f.label }}</span>
+            <select name="has_{{ f.key }}">
+              <option value="">Any</option>
+              <option value="yes" {% if f.value == 'yes' %}selected{% endif %}>Present</option>
+              <option value="no" {% if f.value == 'no' %}selected{% endif %}>Absent</option>
+            </select>
+          </label>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="curate-filters__actions">
+      <button type="submit" class="curate-btn">Apply</button>
+      <a class="curate-btn curate-btn--ghost" href="{% url 'art:curate:piece-list' %}">Reset</a>
+      <button type="button" class="curate-btn curate-btn--ghost" data-toggle-advanced
+              aria-controls="advanced-filters" data-active-count="{{ advanced_count }}"
+              aria-expanded="{% if advanced_active %}true{% else %}false{% endif %}">{% if advanced_active %}Less{% else %}More{% endif %}</button>
+    </div>
+  </form>
+
+  {% if pieces %}
+    <ul class="curate-piece-grid">
+      {% for piece in pieces %}
+        <li class="curate-piece">
+          <a class="curate-piece__body" href="{% url 'art:curate:piece-edit' slug=piece.slug %}">
+            <span class="curate-piece__thumb">
+              {% if piece.image %}
+                <img src="{{ piece.image|thumbnail_url:'thumb' }}"
+                     alt="" width="200" height="200"
+                     loading="lazy" decoding="async">
+              {% endif %}
+            </span>
+            <span class="curate-piece__meta">
+              <span class="curate-piece__title" title="{{ piece.title }}">{{ piece.title }}</span>
+              <span class="curate-piece__artist">{{ piece.artist }}</span>
+              <span class="curate-piece__location">{{ piece.location }}</span>
+            </span>
+          </a>
+        </li>
+      {% endfor %}
+    </ul>
+
+    {% include "curate/_pagination.html" %}
+  {% else %}
+    <p class="empty">No pieces match these filters.</p>
+  {% endif %}
+{% endblock %}

@@ -1,0 +1,5 @@
+[Network]
+# Bridge network for artsite containers to communicate
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,56 @@
+{% extends "art/base.html" %}
+{% load thumbnail %}
+
+{% block head_title %}By artist · {{ site_name }}{% endblock %}
+{% block meta_description %}Browse the collection grouped by artist.{% endblock %}
+
+{% block content %}
+  {% include "art/index-header.html" %}
+  {% regroup piece_list by artist as piece_list_by_artist %}
+
+  {% if piece_list_by_artist %}
+    {% include "art/_group-jump.html" with groups=piece_list_by_artist jump_label="Jump to artist" %}
+
+    {% for artist in piece_list_by_artist %}
+      <section class="artist-section" id="{{ artist.grouper.id }}">
+        <header class="artist-header">
+          {% if artist.grouper.portrait %}
+            <img class="artist-portrait" src="{{ artist.grouper.portrait|thumbnail_url:'thumb' }}"
+                 alt="Portrait of {{ artist.grouper.name }}"
+                 width="72" height="72"
+                 loading="lazy" decoding="async">
+          {% else %}
+            <span class="artist-portrait artist-portrait--empty" aria-hidden="true">{{ artist.grouper.name|slice:":1" }}</span>
+          {% endif %}
+          <div class="artist-meta">
+            <h2 class="artist-name">
+              {{ artist.grouper }}
+              <span class="group-count">{{ artist.list|length }} piece{{ artist.list|length|pluralize }}</span>
+            </h2>
+            {% if artist.grouper.website or artist.grouper.instagram %}
+              <ul class="artist-links">
+                {% if artist.grouper.website %}
+                  <li><a href="{{ artist.grouper.website }}" target="_blank" rel="noopener">Website</a></li>
+                {% endif %}
+                {% if artist.grouper.instagram %}
+                  <li><a href="{{ artist.grouper.instagram }}" target="_blank" rel="noopener">Instagram</a></li>
+                {% endif %}
+              </ul>
+            {% endif %}
+            {% if artist.grouper.notes %}
+              <p class="artist-notes">{{ artist.grouper.notes|linebreaksbr }}</p>
+            {% endif %}
+          </div>
+        </header>
+
+        <ul class="art-grid">
+          {% for piece in artist.list %}
+            <li>{% include "art/index-thumbnail.html" %}</li>
+          {% endfor %}
+        </ul>
+      </section>
+    {% endfor %}
+  {% else %}
+    <p class="empty">No pieces yet.</p>
+  {% endif %}
+{% endblock %}

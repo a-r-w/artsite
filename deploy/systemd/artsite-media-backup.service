@@ -1,0 +1,9 @@
+[Unit]
+Description=Replicate artsite media + documents off-site
+
+[Service]
+Type=oneshot
+# Provides MEDIA_BACKUP_DEST (and optionally MEDIA_DIR/PRIVATE_DIR/MIRROR).
+EnvironmentFile=%h/.config/artsite/artsite.env
+# Adjust to wherever you checked out the repo / placed the script.
+ExecStart=%h/artsite/deploy/backup-media.sh

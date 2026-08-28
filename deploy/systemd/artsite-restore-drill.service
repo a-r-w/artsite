@@ -1,0 +1,9 @@
+[Unit]
+Description=Artsite backup restore drill (throwaway restore + verify_media)
+After=artsite-media-backup.service
+
+[Service]
+Type=oneshot
+# Provides MEDIA_BACKUP_DEST / POSTGRES_* (and optionally BACKUP_DIR/ARTSITE_IMAGE).
+EnvironmentFile=%h/.config/artsite/artsite.env
+ExecStart=%h/artsite/deploy/restore-drill.sh

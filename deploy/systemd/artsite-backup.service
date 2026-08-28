@@ -1,0 +1,11 @@
+[Unit]
+Description=Back up the artsite Postgres database
+After=artsite-db.service
+Requires=artsite-db.service
+
+[Service]
+Type=oneshot
+# Provides POSTGRES_DB / POSTGRES_USER (and optionally BACKUP_DIR/RETENTION_DAYS).
+EnvironmentFile=%h/.config/artsite/artsite.env
+# Adjust this to wherever you checked out the repo / placed the script.
+ExecStart=%h/artsite/deploy/backup-db.sh

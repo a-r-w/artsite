@@ -1,0 +1,113 @@
+{% extends "art/base.html" %}
+{% load static thumbnail art_extras %}
+
+{% block head_title %}{{ piece.title }} · {{ site_name }}{% endblock %}
+{% block og_title %}{{ piece.title }} — {{ piece.artist }}{% endblock %}
+{% block meta_description %}{{ piece.title }} by {{ piece.artist }}.{% endblock %}
+{% block og_description %}{{ piece.title }} by {{ piece.artist }}.{% endblock %}
+{% block og_type %}article{% endblock %}
+{% block og_extra %}
+  {% if piece.image %}<meta property="og:image" content="{% absolute_url piece.image|thumbnail_url:'thumb' %}">{% endif %}
+{% endblock %}
+
+{% block extra_css %}<link rel="stylesheet" href="{% static 'art/css/lightbox.css' %}">{% endblock %}
+{% block extra_js %}<script src="{% static 'art/js/lightbox.js' %}"></script><script src="{% static 'art/js/back-link.js' %}"></script>{% endblock %}
+
+{# No site-title header here — give the image more room; the "← All pieces"
+   link below and the footer Curate link keep navigation available. #}
+{% block site_header %}{% endblock %}
+
+{% block content %}
+  <p class="back-link">
+    <a href="{% url 'art:index' %}" data-back-link
+       data-listing-paths="{% url 'art:index' %} {% url 'art:artists' %} {% url 'art:location' %} {% url 'art:untagged' %}">← All pieces</a>
+  </p>
+
+  <article class="piece">
+    <header class="piece-header">
+      <h1 class="piece-title">{{ piece.title }}</h1>
+      <p class="piece-byline">by <a href="{% url 'art:artists' %}#{{ piece.artist.id }}">{{ piece.artist }}</a></p>
+    </header>
+
+    {% if piece.image %}
+      <figure class="piece-figure" id="lightBox">
+        {% if piece.image_width and piece.image_height %}
+          {% comment %}
+            Sized box reserves the image's space (no layout shift) and holds the
+            blurred placeholder (--lqip); the hero fades in over it on load.
+          {% endcomment %}
+          <span class="piece-figure__media"
+                style="width: min(100%, {{ piece.image_width }}px, calc(75vh * {{ piece.image_width }} / {{ piece.image_height }})); aspect-ratio: {{ piece.image_width }} / {{ piece.image_height }}{% if piece.image_lqip %}; --lqip: url('{{ piece.image_lqip }}'){% endif %}">
+            <img src="{{ piece.image.url }}" alt="{{ piece.title }} by {{ piece.artist }}"
+                 width="{{ piece.image_width }}" height="{{ piece.image_height }}"
+                 decoding="async" fetchpriority="high" data-fade>
+          </span>
+        {% else %}
+          <img src="{{ piece.image.url }}" alt="{{ piece.title }} by {{ piece.artist }}"
+               decoding="async" fetchpriority="high" data-fade>
+        {% endif %}
+      </figure>
+    {% endif %}
+
+    <dl class="piece-meta">
+      {% if piece.medium %}
+        <dt>Medium</dt>
+        <dd>{{ piece.medium }}{% if piece.medium_details %} <span class="muted">— {{ piece.medium_details }}</span>{% endif %}</dd>
+      {% endif %}
+      {% if piece.dimensions %}
+        <dt>Dimensions</dt>
+        <dd>{{ piece.dimensions }}</dd>
+      {% endif %}
+      {% if piece.acquired %}
+        <dt>Acquired</dt>
+        <dd>{{ piece.acquired }}{% if piece.date_acquired %} <span class="muted">— {{ piece.date_acquired|date:"F Y" }}</span>{% endif %}</dd>
+      {% elif piece.date_acquired %}
+        <dt>Acquired</dt>
+        <dd>{{ piece.date_acquired|date:"F Y" }}</dd>
+      {% endif %}
+      {% if piece.location %}
+        <dt>Location</dt>
+        <dd>
+          <a href="{% url 'art:location' %}#{{ piece.location.id }}">{{ piece.location }}</a>
+        </dd>
+      {% endif %}
+      {% if piece.website %}
+        <dt>Website</dt>
+        <dd><a href="{{ piece.website }}" target="_blank" rel="noopener">{{ piece.website }}</a></dd>
+      {% endif %}
+      {% if piece.notes %}
+        <dt>Notes</dt>
+        <dd>{{ piece.notes|linebreaksbr }}</dd>
+      {% endif %}
+    </dl>
+
+    {% if piece.artist.website or piece.artist.instagram or piece.artist.notes or piece.artist.portrait %}
+      <aside class="artist-card">
+        {% if piece.artist.portrait %}
+          <img class="artist-portrait" src="{{ piece.artist.portrait|thumbnail_url:'thumb' }}"
+               alt="Portrait of {{ piece.artist.name }}"
+               width="64" height="64"
+               loading="lazy" decoding="async">
+        {% endif %}
+        <div>
+          <h2 class="artist-name">About {{ piece.artist }}</h2>
+          {% if piece.artist.notes %}<p>{{ piece.artist.notes|linebreaksbr }}</p>{% endif %}
+          <ul class="artist-links">
+            {% if piece.artist.website %}<li><a href="{{ piece.artist.website }}" target="_blank" rel="noopener">Website</a></li>{% endif %}
+            {% if piece.artist.instagram %}<li><a href="{{ piece.artist.instagram }}" target="_blank" rel="noopener">Instagram</a></li>{% endif %}
+            <li><a href="{% url 'art:artists' %}#{{ piece.artist.id }}">All pieces from this artist</a></li>
+          </ul>
+        </div>
+      </aside>
+    {% endif %}
+
+    {% if user.is_authenticated and user.is_staff %}
+      <p class="staff-only">
+        {% if not piece.tagged %}
+          <a class="nfc-link" href="smartnfc://write/?recordType=url&payload={{ request.scheme }}://{{ request.get_host }}{{ request.path }}?from=tag">Write NFC Tag</a>
+        {% endif %}
+        <a class="nfc-link" href="{% url 'art:curate:piece-edit' slug=piece.slug %}">Edit</a>
+      </p>
+    {% endif %}
+  </article>
+{% endblock %}

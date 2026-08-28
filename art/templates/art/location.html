@@ -1,0 +1,29 @@
+{% extends "art/base.html" %}
+
+{% block head_title %}By location · {{ site_name }}{% endblock %}
+{% block meta_description %}Browse the collection grouped by where each piece lives.{% endblock %}
+
+{% block content %}
+  {% include "art/index-header.html" %}
+  {% regroup piece_list by location as piece_list_by_location %}
+
+  {% if piece_list_by_location %}
+    {% include "art/_group-jump.html" with groups=piece_list_by_location jump_label="Jump to location" %}
+
+    {% for location in piece_list_by_location %}
+      <section class="location-section" id="{{ location.grouper.id }}">
+        <h2 class="location-name">
+          {{ location.grouper }}
+          <span class="group-count">{{ location.list|length }} piece{{ location.list|length|pluralize }}</span>
+        </h2>
+        <ul class="art-grid">
+          {% for piece in location.list %}
+            <li>{% include "art/index-thumbnail.html" %}</li>
+          {% endfor %}
+        </ul>
+      </section>
+    {% endfor %}
+  {% else %}
+    <p class="empty">No pieces yet.</p>
+  {% endif %}
+{% endblock %}

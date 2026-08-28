@@ -1,0 +1,22 @@
+[Unit]
+Description=PostgreSQL database for artsite
+After=artsite-network.service
+
+[Container]
+Image=docker.io/library/postgres:16-alpine
+ContainerName=artsite-db
+Network=artsite.network
+Volume=artsite-db-data.volume:/var/lib/postgresql/data:Z
+EnvironmentFile=%h/.config/artsite/artsite.env
+HealthCmd=pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}
+HealthInterval=30s
+HealthTimeout=10s
+HealthRetries=5
+HealthStartPeriod=10s
+
+[Service]
+Restart=always
+TimeoutStartSec=300
+
+[Install]
+WantedBy=default.target

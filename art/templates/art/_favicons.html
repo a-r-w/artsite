@@ -1,0 +1,11 @@
+{% load static %}
+{% comment %}
+Favicons, Apple touch icon, and the web app manifest, shared by the public and
+curate <head>s. The manifest is served by a view (art:manifest) so its name
+tracks the curator-editable SiteSettings site name rather than a baked-in value.
+{% endcomment %}
+<link rel="icon" href="{% static 'art/favicon/favicon.ico' %}" sizes="any">
+<link rel="icon" type="image/svg+xml" href="{% static 'art/favicon/favicon.svg' %}">
+<link rel="icon" type="image/png" sizes="96x96" href="{% static 'art/favicon/favicon-96x96.png' %}">
+<link rel="apple-touch-icon" href="{% static 'art/favicon/apple-touch-icon.png' %}">
+<link rel="manifest" href="{% url 'art:manifest' %}">

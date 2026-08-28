@@ -1,0 +1,32 @@
+{% comment %}
+HTMX-driven modal panel for creating an Artist / Medium / Location inline
+from the piece form. Returned with status 200 on GET and on a validation
+error (htmx 2.x won't swap a 4xx body, so the bound form with errors is
+re-rendered as 200); on a successful POST the view returns an empty body +
+HX-Trigger that closes the modal and updates the parent <select>.
+{% endcomment %}
+<div class="curate-modal__backdrop" data-curate-modal-close></div>
+<div class="curate-modal__panel" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+  <header class="curate-modal__header">
+    <h2 id="modalTitle">{{ title }}</h2>
+    <button type="button" class="curate-modal__close" aria-label="Close" data-curate-modal-close>×</button>
+  </header>
+  <form method="post" enctype="multipart/form-data"
+        hx-post="{{ submit_url }}"
+        hx-target="#curate-modal"
+        hx-swap="innerHTML"
+        hx-encoding="multipart/form-data"
+        class="curate-form curate-form--modal">
+    {% csrf_token %}
+    {% if form.non_field_errors %}
+      <div class="curate-form__errors" role="alert">{{ form.non_field_errors }}</div>
+    {% endif %}
+    {% for field in form %}
+      {% include "curate/_field.html" with field=field %}
+    {% endfor %}
+    <div class="curate-form__actions">
+      <button type="submit" class="curate-btn">Create</button>
+      <button type="button" class="curate-btn curate-btn--ghost" data-curate-modal-close>Cancel</button>
+    </div>
+  </form>
+</div>

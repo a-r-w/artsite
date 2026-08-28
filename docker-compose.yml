@@ -1,0 +1,68 @@
+# One-command deployment: app + PostgreSQL + Caddy (automatic HTTPS).
+#
+#   cp .env.example .env     # then edit DOMAIN, DJANGO_SECRET_KEY, passwords
+#   docker compose up -d --build
+#
+# Point your domain's DNS at the host (ports 80 + 443 open) and open https://DOMAIN/.
+# For local media storage; to use GCS instead, see deploy/SELF_HOSTING.md.
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    restart: unless-stopped
+    # env_file brings in DJANGO_SECRET_KEY + the DJANGO_SUPERUSER_*/SEED_DEMO
+    # bootstrap vars; the rest are derived here so there's one source of truth.
+    env_file: .env
+    environment:
+      ENVIRONMENT: production
+      STORAGE_BACKEND: local
+      ALLOWED_HOSTS: ${DOMAIN}
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      MEDIA_ROOT: /data/media
+      PRIVATE_MEDIA_ROOT: /data/private
+      GUNICORN_BIND: 0.0.0.0:8000 # compose's bridge network is IPv4
+    command: sh deploy/entrypoint.sh
+    volumes:
+      - media:/data/media
+      - private:/data/private
+    depends_on:
+      db:
+        condition: service_healthy
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    environment:
+      DOMAIN: ${DOMAIN}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/Caddyfile.compose:/etc/caddy/Caddyfile:ro
+      - media:/srv/media:ro # serve /media/* straight from the shared volume
+      - caddy_data:/data # persists the provisioned TLS cert across restarts
+      - caddy_config:/config
+    depends_on:
+      app:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  media:
+  private:
+  caddy_data:
+  caddy_config:
