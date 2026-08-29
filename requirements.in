@@ -1,7 +1,7 @@
 # Direct dependencies. Compile into requirements.txt with:
 #   uv pip compile requirements.in -o requirements.txt --python-version 3.12
 
-django>=6.0,<6.1
+django>=6.1,<6.2
 django-axes>=8.1,<9
 django-htmx
 django-storages[google]
