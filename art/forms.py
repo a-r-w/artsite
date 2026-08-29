@@ -90,7 +90,14 @@ def has_unsaved_upload(form, field_name):
 class SiteSettingsForm(forms.ModelForm):
     class Meta:
         model = SiteSettings
-        fields = ['site_name', 'footer_text', 'public_sort', 'default_currency', 'default_dimension_unit']
+        fields = [
+            'site_name',
+            'footer_text',
+            'public_sort',
+            'default_currency',
+            'default_dimension_unit',
+            'quick_add_drafts',
+        ]
         labels = {
             'site_name': 'Site name',
             'footer_text': 'Public footer text',
@@ -207,6 +214,7 @@ class PieceForm(forms.ModelForm):
             'website',
             'notes',
             'notes_private',
+            'draft',
             'tagged',
         ]
         widgets = {
@@ -223,8 +231,9 @@ class PieceForm(forms.ModelForm):
             'medium_details': forms.TextInput(attrs={'placeholder': ''}),
             'acquired': forms.TextInput(attrs={'placeholder': 'where / from whom'}),
         }
-        labels = {'purchase_currency': 'Currency'}
+        labels = {'purchase_currency': 'Currency', 'draft': 'Draft — hide from the public site'}
         help_texts = {
+            'draft': 'Quick-add starts pieces here. Uncheck to publish; the public URL is fixed at that point.',
             'tagged': 'Check once an NFC tag has been written for this piece.',
             'notes_private': 'Not shown on the public site — purchase context, condition, etc.',
         }

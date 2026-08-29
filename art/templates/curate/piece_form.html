@@ -108,6 +108,12 @@
     <fieldset class="curate-form__section">
       <legend>Status</legend>
       <label class="curate-form__check">
+        {{ form.draft }}
+        <span>{{ form.draft.label }}</span>
+      </label>
+      {% if form.draft.help_text %}<p class="curate-form__help">{{ form.draft.help_text }}</p>{% endif %}
+      {% if form.draft.errors %}<p class="curate-form__field-error">{{ form.draft.errors|join:" " }}</p>{% endif %}
+      <label class="curate-form__check">
         {{ form.tagged }}
         <span>{{ form.tagged.label }}</span>
       </label>

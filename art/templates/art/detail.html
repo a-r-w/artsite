@@ -1,10 +1,10 @@
 {% extends "art/base.html" %}
 {% load static thumbnail art_extras %}
 
-{% block head_title %}{{ piece.title }} · {{ site_name }}{% endblock %}
-{% block og_title %}{{ piece.title }} — {{ piece.artist }}{% endblock %}
-{% block meta_description %}{{ piece.title }} by {{ piece.artist }}.{% endblock %}
-{% block og_description %}{{ piece.title }} by {{ piece.artist }}.{% endblock %}
+{% block head_title %}{{ piece.display_title }} · {{ site_name }}{% endblock %}
+{% block og_title %}{{ piece.display_title }} — {{ piece.artist }}{% endblock %}
+{% block meta_description %}{{ piece.display_title }} by {{ piece.artist }}.{% endblock %}
+{% block og_description %}{{ piece.display_title }} by {{ piece.artist }}.{% endblock %}
 {% block og_type %}article{% endblock %}
 {% block og_extra %}
   {% if piece.image %}<meta property="og:image" content="{% absolute_url piece.image|thumbnail_url:'thumb' %}">{% endif %}
@@ -25,7 +25,11 @@
 
   <article class="piece">
     <header class="piece-header">
-      <h1 class="piece-title">{{ piece.title }}</h1>
+      <h1 class="piece-title">{{ piece.display_title }}</h1>
+      {% if piece.draft %}
+        <p class="piece-draft-note">Draft — only you can see this page. Publish it from
+          <a href="{% url 'art:curate:piece-edit' slug=piece.slug %}">Edit</a>.</p>
+      {% endif %}
       <p class="piece-byline">by <a href="{% url 'art:artists' %}#{{ piece.artist.id }}">{{ piece.artist }}</a></p>
     </header>
 
@@ -38,12 +42,12 @@
           {% endcomment %}
           <span class="piece-figure__media"
                 style="width: min(100%, {{ piece.image_width }}px, calc(75vh * {{ piece.image_width }} / {{ piece.image_height }})); aspect-ratio: {{ piece.image_width }} / {{ piece.image_height }}{% if piece.image_lqip %}; --lqip: url('{{ piece.image_lqip }}'){% endif %}">
-            <img src="{{ piece.image.url }}" alt="{{ piece.title }} by {{ piece.artist }}"
+            <img src="{{ piece.image.url }}" alt="{{ piece.display_title }} by {{ piece.artist }}"
                  width="{{ piece.image_width }}" height="{{ piece.image_height }}"
                  decoding="async" fetchpriority="high" data-fade>
           </span>
         {% else %}
-          <img src="{{ piece.image.url }}" alt="{{ piece.title }} by {{ piece.artist }}"
+          <img src="{{ piece.image.url }}" alt="{{ piece.display_title }} by {{ piece.artist }}"
                decoding="async" fetchpriority="high" data-fade>
         {% endif %}
       </figure>
@@ -103,7 +107,9 @@
 
     {% if user.is_authenticated and user.is_staff %}
       <p class="staff-only">
-        {% if not piece.tagged %}
+        {% if not piece.tagged and not piece.slug_is_provisional %}
+          {# Hidden while the piece is an unfinished capture: its URL can still
+             change, and a tag written now would point at a dead link. #}
           <a class="nfc-link" href="smartnfc://write/?recordType=url&payload={{ request.scheme }}://{{ request.get_host }}{{ request.path }}?from=tag">Write NFC Tag</a>
         {% endif %}
         <a class="nfc-link" href="{% url 'art:curate:piece-edit' slug=piece.slug %}">Edit</a>

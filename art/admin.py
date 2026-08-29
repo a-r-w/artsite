@@ -7,8 +7,8 @@ from .models import Artist, Location, Medium, Piece
 
 @admin.register(Piece)
 class PieceAdmin(admin.ModelAdmin):
-    list_display = ['title', 'artist', 'location', 'tagged', 'admin_image_tag']
-    list_filter = ['artist', 'location', 'tagged', 'medium']
+    list_display = ['title', 'artist', 'location', 'draft', 'tagged', 'admin_image_tag']
+    list_filter = ['draft', 'artist', 'location', 'tagged', 'medium']
     search_fields = ['title', 'slug', 'artist__name', 'notes']
     readonly_fields = ['slug', 'admin_image_tag']
     list_select_related = ['artist', 'location', 'medium']
@@ -28,7 +28,7 @@ class PieceAdmin(admin.ModelAdmin):
         ),
         ('Acquisition', {'fields': ('date_acquired', 'acquired', 'purchase_price', 'purchase_currency', 'website')}),
         ('Notes', {'fields': ('notes', 'notes_private')}),
-        ('Status', {'fields': ('tagged',)}),
+        ('Status', {'fields': ('draft', 'tagged')}),
     )
 
 

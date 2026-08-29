@@ -391,10 +391,12 @@ class SiteSettingsTests(TestCase):
 
     def test_public_ordering_maps_title_and_artist_choices(self):
         s = SiteSettings.load()
+        # Each ordering ends in 'id' so it is total: untitled captures sharing
+        # the placeholder artist tie on every other key.
         s.public_sort = SiteSettings.PublicSort.TITLE
-        self.assertEqual(s.public_ordering(), ('title',))
+        self.assertEqual(s.public_ordering(), ('title', 'id'))
         s.public_sort = SiteSettings.PublicSort.ARTIST
-        self.assertEqual(s.public_ordering(), ('artist__name', 'title'))
+        self.assertEqual(s.public_ordering(), ('artist__name', 'title', 'id'))
 
     def test_public_ordering_falls_back_on_unknown_value(self):
         s = SiteSettings.load()

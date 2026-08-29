@@ -1,0 +1,149 @@
+{% extends "curate/curate_base.html" %}
+{% load thumbnail %}
+
+{% block head_title %}Quick add{% endblock %}
+{% block page_title %}Quick add{% endblock %}
+{% block page_sub %}
+  <p class="curate-page-sub">Photograph pieces now, fill in the details later.</p>
+{% endblock %}
+{% block page_actions %}
+  <a class="curate-btn curate-btn--ghost" href="{% url 'art:curate:piece-list' %}">All pieces</a>
+{% endblock %}
+
+{% block content %}
+  <form class="quickadd" method="post" enctype="multipart/form-data"
+        data-quickadd data-max-files="{{ max_files }}">
+    {% csrf_token %}
+    <p class="quickadd__lead">
+      {% if as_draft %}
+        Every photo becomes a <strong>draft</strong> — artist and location set to
+        “{{ placeholder_label }}”, no title yet, and <strong>hidden from your public
+        site</strong> until you finish it off.
+      {% else %}
+        Every photo <strong>goes live immediately</strong> — with no title and
+        “{{ placeholder_label }}” as its artist and location, until you fill those
+        in. Change this under <a href="{% url 'art:curate:settings' %}">Settings</a>.
+      {% endif %}
+    </p>
+
+    <div class="quickadd__actions">
+      <label class="quickadd__btn quickadd__btn--primary">
+        <span>Choose photos</span>
+        <input type="file" name="photos" accept="image/*" multiple data-quickadd-input>
+      </label>
+      <label class="quickadd__btn">
+        <span>Take a photo</span>
+        <input type="file" name="photos" accept="image/*" capture="environment" data-quickadd-input>
+      </label>
+    </div>
+
+    <p class="quickadd__hint">
+      On a phone, <strong>Choose photos</strong> selects a whole batch from your camera
+      roll at once (up to {{ max_files }}) — walk the room with the normal Camera app first, then
+      upload the lot in one go. Uploading starts as soon as you pick; keep the page open
+      until it finishes.
+    </p>
+
+    <p class="quickadd__status" data-quickadd-status role="status" hidden></p>
+    <noscript>
+      <button type="submit" class="curate-btn">Upload photos</button>
+    </noscript>
+  </form>
+
+  {% if unfinished_count or draft_count %}
+    <section class="quickadd__drafts">
+      <h2 class="quickadd__drafts-head">
+        <span>
+          {% if unfinished_count %}
+            <a href="{% url 'art:curate:piece-list' %}?has_title=no&amp;sort=added">{{ unfinished_count }}
+              capture{{ unfinished_count|pluralize }} waiting for details</a>
+          {% endif %}
+          {% if unfinished_count and draft_count %} · {% endif %}
+          {% if draft_count %}
+            <a href="{% url 'art:curate:piece-list' %}?draft=yes&amp;sort=added">{{ draft_count }}
+              still hidden from the public site</a>
+          {% endif %}
+        </span>
+      </h2>
+      <ul class="quickadd__grid">
+        {% for piece in recent_captures %}
+          <li class="quickadd__item">
+            <a href="{% url 'art:curate:piece-edit' slug=piece.slug %}" title="Add details">
+              {% if piece.image %}
+                <img src="{{ piece.image|thumbnail_url:'thumb' }}" alt=""
+                     width="150" height="150" loading="lazy" decoding="async">
+              {% else %}
+                <span class="quickadd__item-empty">No image</span>
+              {% endif %}
+            </a>
+          </li>
+        {% endfor %}
+      </ul>
+    </section>
+  {% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script nonce="{{ request.csp_nonce }}">
+  // Pick photos -> upload immediately. One tap fewer on a phone, and the
+  // "uploading" state matters here: a 20-photo batch over patchy wifi takes a
+  // while, and a second tap would start the whole POST again.
+  (function () {
+    var form = document.querySelector('[data-quickadd]');
+    if (!form) { return; }
+    var status = form.querySelector('[data-quickadd-status]');
+    var buttons = form.querySelectorAll('.quickadd__btn');
+    var inputs = form.querySelectorAll('[data-quickadd-input]');
+    var maxFiles = parseInt(form.getAttribute('data-max-files'), 10) || 100;
+    var submitting = false;
+
+    function setBusy(busy) {
+      submitting = busy;
+      Array.prototype.forEach.call(buttons, function (button) {
+        button.classList.toggle('is-busy', busy);
+      });
+    }
+
+    function say(message) {
+      status.hidden = !message;
+      status.textContent = message || '';
+    }
+
+    Array.prototype.forEach.call(inputs, function (input) {
+      input.addEventListener('change', function () {
+        // The lock is also checked here, not just via pointer-events: that CSS
+        // stops taps but not a keyboard or assistive-tech activation, which
+        // would fire a second full POST while the first is still in flight.
+        if (submitting) { return; }
+        var count = input.files ? input.files.length : 0;
+        if (!count) { return; }
+        if (count > maxFiles) {
+          // Django's multipart parser rejects the whole request above this
+          // limit, before the view runs — a bare 400 with nothing saved, after
+          // the user has watched a long upload. Stop here and say so instead.
+          input.value = '';
+          say('That is ' + count + ' photos — more than the ' + maxFiles +
+              ' this can take at once. Select fewer and upload in a couple of goes.');
+          return;
+        }
+        setBusy(true);
+        say('Uploading ' + count + ' photo' + (count === 1 ? '' : 's') + '…');
+        form.submit();
+      });
+    });
+
+    // A Back/Forward that restores this page from the bfcache would otherwise
+    // show the buttons stuck in their "uploading" state and untappable — the
+    // same trap curate.js already handles for the filter form. Clearing the
+    // inputs too means re-picking the SAME photos still fires `change` (a file
+    // input fires nothing when the selection is unchanged), so a retry after a
+    // failed upload actually works.
+    window.addEventListener('pageshow', function (e) {
+      if (!e.persisted) { return; }
+      setBusy(false);
+      say('');
+      Array.prototype.forEach.call(inputs, function (input) { input.value = ''; });
+    });
+  })();
+</script>
+{% endblock %}

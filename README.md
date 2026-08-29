@@ -49,6 +49,14 @@ your own hardware.
 - **Full CRUD** for pieces, artists, mediums, and locations, plus a singleton
   **site-settings** editor (site name, footer, default currency & units).
 - **Drag-and-drop image upload** with an instant client-side preview.
+- **Quick add** — catalogue a whole room from your phone: photograph the pieces
+  with the normal camera app, upload the batch in one go, and each becomes a
+  **draft** (placeholder artist/location, no title) that's **hidden from the
+  public site** until you sit down and fill in the details. Prefer them to show
+  up straight away? Turn off *“Quick add starts pieces as drafts”* in Settings.
+  Either way, a piece's web address isn't fixed until it has a title and a real
+  artist — so finishing one later never leaves a placeholder URL behind, and once
+  fixed it never moves. Any piece can be drafted or published from its edit form.
 - **Staff-only documents** — attach receipts, valuations, and condition reports
   to a piece, each with an image/PDF thumbnail. Stored in a separate private
   location and streamed only through a staff-gated view, so they’re **never**
@@ -79,7 +87,7 @@ phone tap opens that piece’s page. Staff can mark pieces tagged, and an
 - **Two reference deployments** — Fly.io (`fly.toml.example`) and rootless **Podman**
   Quadlet with a Postgres sidecar (`deploy/`), plus a step-by-step migration
   runbook and a DB backup script. See **[`deploy/SELF_HOSTING.md`](deploy/SELF_HOSTING.md)**.
-- **Well tested** — 380+ tests covering models, views, the curator admin, the
+- **Well tested** — 430+ tests covering models, views, the curator admin, the
   storage commands, and access-control, runnable with no network or credentials,
   and run on every push and PR by GitHub Actions CI.
 
@@ -342,7 +350,9 @@ artsite/
 What artsite *does* keep private — never rendered on, or reachable from, a public
 page (there are tests that enforce it) — is each piece's **purchase price**,
 **currency**, **private notes**, and any attached **documents** (receipts,
-valuations, condition reports). Acquisition free-text and date *are* shown
+valuations, condition reports). **Draft** pieces are held back too: they're
+absent from every public list and their own page 404s for visitors (a signed-in
+curator can still preview it), until you publish them. Acquisition free-text and date *are* shown
 publicly. EXIF metadata (GPS, camera, timestamps) is stripped from every uploaded
 image, since the originals are public.
 

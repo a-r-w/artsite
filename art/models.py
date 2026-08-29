@@ -7,7 +7,7 @@ from django.conf import settings
 from django.core.files.base import ContentFile
 from django.core.files.storage import storages
 from django.core.validators import MinValueValidator
-from django.db import models
+from django.db import IntegrityError, models, transaction
 from django.db.models.signals import post_delete
 from django.dispatch import receiver
 from django.template.defaultfilters import slugify
@@ -56,7 +56,34 @@ DIMENSION_UNIT_CHOICES = [('in', 'in'), ('cm', 'cm')]
 _NON_NEGATIVE = [MinValueValidator(Decimal('0'))]
 
 
-class Artist(models.Model):
+# Quick add captures a bare photo, but a Piece must have an artist and a location
+# (both non-null FKs). Rather than making those columns nullable — which would
+# push "might be missing" guards into every public template and the by-artist /
+# by-location groupings — quick add points them at one shared placeholder row per
+# model, which the curator reassigns when completing the piece.
+PLACEHOLDER_LABEL = 'Not set'
+
+
+class PlaceholderableMixin(models.Model):
+    """Shared "this is the Quick add placeholder row" flag for Artist/Location."""
+
+    # Flag rather than a name match, so renaming the row is a supported way to
+    # adopt it as a real artist/location (see _placeholder). editable=False: it
+    # is set by Quick add, never by a curator ticking a box.
+    is_placeholder = models.BooleanField(default=False, editable=False)
+
+    class Meta:
+        abstract = True
+
+    def _sync_placeholder_flag(self, label_value):
+        # Renaming the placeholder to anything else means the curator has adopted
+        # it as a real row — so it stops being the placeholder, and its pieces
+        # become eligible to settle their URLs under the new name.
+        if self.is_placeholder and label_value != PLACEHOLDER_LABEL:
+            self.is_placeholder = False
+
+
+class Artist(PlaceholderableMixin):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=200)
     portrait = ThumbnailerImageField(upload_to=id_prefixed_filename, null=True, blank=True)
@@ -69,6 +96,7 @@ class Artist(models.Model):
         return self.name
 
     def save(self, *args, **kwargs):
+        self._sync_placeholder_flag(self.name)
         # Strip EXIF (GPS/camera/timestamp) from a freshly-uploaded portrait —
         # it's served publicly. No-op for an unchanged stored file.
         strip_image_metadata(self.portrait)
@@ -79,6 +107,13 @@ class Artist(models.Model):
 
     class Meta:
         ordering = ['name']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['is_placeholder'],
+                condition=models.Q(is_placeholder=True),
+                name='unique_placeholder_artist',
+            )
+        ]
 
 
 class Medium(models.Model):
@@ -92,15 +127,65 @@ class Medium(models.Model):
         ordering = ['description']
 
 
-class Location(models.Model):
+class Location(PlaceholderableMixin):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     description = models.CharField(max_length=200, unique=True)
 
     def __str__(self):
         return self.description
 
+    def save(self, *args, **kwargs):
+        self._sync_placeholder_flag(self.description)
+        super().save(*args, **kwargs)
+
     class Meta:
         ordering = ['description']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['is_placeholder'],
+                condition=models.Q(is_placeholder=True),
+                name='unique_placeholder_location',
+            )
+        ]
+
+
+def _placeholder(model, field):
+    """Fetch (or create) the shared placeholder row for Artist / Location.
+
+    Identified by the `is_placeholder` FLAG, not by its name: a curator is free
+    to rename it (adopting the row as a real artist), and matching on the string
+    would then mistake a real artist for the placeholder — and vice versa for
+    someone who types their own "Not set" artist for unattributed works.
+
+    A partial unique index allows only one flagged row per model, so a concurrent
+    double-submit raises IntegrityError instead of quietly splitting a photo walk
+    across two placeholders; the loser re-reads the winner's row.
+    """
+    existing = model.objects.filter(is_placeholder=True).first()
+    if existing:
+        return existing
+    lookup = {field: PLACEHOLDER_LABEL}
+    # Adopt a matching row the curator made by hand rather than creating a
+    # confusing second one with the same name.
+    adopted = model.objects.filter(**lookup).order_by('pk').first()
+    if adopted:
+        model.objects.filter(pk=adopted.pk).update(is_placeholder=True)
+        adopted.is_placeholder = True
+        return adopted
+    try:
+        # Own savepoint: a losing race must not poison the caller's transaction.
+        with transaction.atomic():
+            return model.objects.create(is_placeholder=True, **lookup)
+    except IntegrityError:
+        return model.objects.filter(is_placeholder=True).first()
+
+
+def placeholder_artist():
+    return _placeholder(Artist, 'name')
+
+
+def placeholder_location():
+    return _placeholder(Location, 'description')
 
 
 class Piece(models.Model):
@@ -115,7 +200,9 @@ class Piece(models.Model):
     # downloads. Generated from the upload alongside the dimensions above; '' for
     # pieces with no image, predating this, or whose placeholder couldn't be made.
     image_lqip = models.TextField(blank=True, default='', editable=False)
-    title = models.CharField(max_length=500)
+    # Blank until the curator names the piece: Quick add captures photos with
+    # no title, and the edit form has to be able to save an artist-only pass.
+    title = models.CharField(max_length=500, blank=True)
     slug = models.SlugField(max_length=1024, unique=True, null=False)
     # PROTECT on the parents a piece can't lose: deleting an artist/location
     # that still has pieces would otherwise cascade-delete the artwork records
@@ -145,13 +232,35 @@ class Piece(models.Model):
     notes = models.TextField(blank=True)
     notes_private = models.TextField(blank=True, verbose_name='Private notes')
     tagged = models.BooleanField(default=False)
+    # An incomplete piece — captured by Quick add as a photo with placeholder
+    # artist/location and no title, or unpublished by hand. Hidden from every
+    # public list, and from the public detail page for everyone but staff, until
+    # the curator completes it and unchecks this. Existing pieces default to
+    # published (False), so nothing already in a collection disappears.
+    draft = models.BooleanField(default=False)
+    # One-way latch: True once the piece has been published under its real
+    # identity, after which its slug is frozen forever. This has to be STORED,
+    # not re-derived: "has this URL ever been public?" is a fact about the past,
+    # and inferring it from current state (draft/title/artist) meant re-drafting
+    # a published piece silently re-opened its permanent URL.
+    slug_settled = models.BooleanField(default=False, editable=False)
     # Nullable: pieces predating these columns have a genuinely unknown
     # add/edit time rather than a fabricated one.
     created = models.DateTimeField(auto_now_add=True, null=True)
     modified = models.DateTimeField(auto_now=True, null=True)
 
     def __str__(self):
-        return self.title
+        return self.display_title
+
+    @property
+    def display_title(self):
+        """What to call this piece in any human-facing string.
+
+        A Quick add capture has no title until the curator types one, and a bare
+        '' reads as a rendering bug wherever it lands — page headings, flash
+        messages, the delete-confirmation screen, admin dropdowns.
+        """
+        return self.title or 'Untitled'
 
     @property
     def dimensions(self):
@@ -173,6 +282,7 @@ class Piece(models.Model):
         ordering = ['title']
 
     def save(self, *args, **kwargs):
+        prior = None if self._state.adding else type(self).objects.filter(pk=self.pk).first()
         # The slug is generated once, on first save, then kept stable (it is a
         # public URL). Collisions are resolved by querying for a free suffix
         # rather than by catching IntegrityError from super().save() — that way
@@ -180,15 +290,42 @@ class Piece(models.Model):
         # slug clash and retried. (Not guarded against two pieces with the same
         # artist+title being created concurrently, which a single curator won't
         # hit; revisit if writes ever become concurrent.)
-        if not self.slug:
-            self.slug = self._unique_slug()
+        #
+        # A quick-add capture is the exception — see slug_settled. Until a piece
+        # has a real identity it carries a PROVISIONAL slug derived from its own
+        # id: unique by construction, so captures never compete for "not-set-1",
+        # and a number freed by a completed capture is never reissued to a
+        # different artwork. The real "<artist>-<title>" slug is minted once, on
+        # the save that completes the piece, and frozen from then on.
+        #
+        # A partial save (update_fields=…) is a targeted column write — the
+        # image-dimension backfill — so leave the slug alone rather than mutating
+        # it in memory without persisting it.
+        partial = kwargs.get('update_fields') is not None
+        if not partial and not self.slug_settled:
+            if self._state.adding and self.slug:
+                # A slug supplied by the caller is a deliberate choice of
+                # permanent URL (imports, fixtures, a hand-picked address), so
+                # take it as given and settled rather than overwriting it.
+                self.slug_settled = True
+            elif self._identity_is_complete():
+                self.slug = self._settled_slug()
+                self.slug_settled = True
+            else:
+                self.slug = self.slug or self._provisional_slug()
+                # A physical NFC tag now encodes this URL, so stop moving it even
+                # though the metadata is still incomplete. Freezes what it already
+                # has rather than minting a placeholder-derived name.
+                if self.tagged:
+                    self.slug_settled = True
+        elif not self.slug:  # defensive: an insert is never a partial save
+            self.slug = self._provisional_slug()
         # Strip EXIF (GPS/camera/timestamp) from a freshly-uploaded image — it's
         # served publicly — and bake in orientation BEFORE capturing dimensions
         # so the reserved box matches the displayed pixels. No-op once committed.
         strip_image_metadata(self.image)
         self._set_image_dimensions()
         self._set_image_lqip()
-        prior = None if self._state.adding else type(self).objects.filter(pk=self.pk).first()
         super().save(*args, **kwargs)
         _cleanup_replaced_image(prior, self, 'image')
 
@@ -234,14 +371,60 @@ class Piece(models.Model):
             return  # unreadable/missing file — leave null
         self.save(update_fields=['image_width', 'image_height'])
 
-    def _unique_slug(self):
-        base_slug = '-'.join((slugify(self.artist.name), slugify(self.title)))
-        slug, counter = base_slug, 0
+    def slug_is_provisional(self):
+        """True while this piece's public URL can still change.
+
+        Simply the inverse of the stored `slug_settled` latch — kept as a named
+        method because templates and views ask this question, not "is the latch
+        set". A provisional URL must not be printed onto an NFC tag.
+        """
+        return not self.slug_settled
+
+    def _identity_is_complete(self):
+        """True when the piece is ready to own a permanent "<artist>-<title>" URL.
+
+        Needs all three: published (a draft isn't public at all), titled, and
+        filed under a real artist rather than the Quick add placeholder — the
+        last so that titling a batch first and assigning artists in a second pass
+        doesn't freeze "not-set-" into every URL.
+        """
+        if self.draft or not self.title.strip():
+            return False
+        return not self.artist.is_placeholder
+
+    def _provisional_slug(self):
+        """A unique, disposable URL for a piece that has no real identity yet.
+
+        Derived from the piece's own id, which makes it unique by construction:
+        no collision probe (a photo walk would otherwise pay one query per
+        already-captured piece), and — critically — no shared "not-set-N"
+        namespace, so a slug vacated when a capture is completed can never be
+        reissued to a different artwork.
+        """
+        return f'capture-{self.id.hex[:12]}'
+
+    def _settled_slug(self):
+        base_slug = self._slug_base()
         others = Piece.objects.exclude(pk=self.pk)
-        while others.filter(slug=slug).exists():
+        if not others.filter(slug=base_slug).exists():
+            return base_slug
+        # Resolve the collision in ONE more query: pull the taken "<base>-*"
+        # slugs and pick the first free number in memory, rather than probing the
+        # database once per candidate. Same result as a linear probe (including
+        # reusing a number freed by a deletion); non-numeric siblings such as
+        # "ada-lovelace-study-notes" simply never match a candidate.
+        taken = set(others.filter(slug__startswith=f'{base_slug}-').values_list('slug', flat=True))
+        counter = 1
+        while f'{base_slug}-{counter}' in taken:
             counter += 1
-            slug = f'{base_slug}-{counter}'
-        return slug
+        return f'{base_slug}-{counter}'
+
+    def _slug_base(self):
+        # Drop parts that slugify to nothing — a title made entirely of
+        # punctuation or emoji — so the base can't end in a stray hyphen.
+        # 'piece' is the last resort if both parts vanish.
+        parts = [part for part in (slugify(self.artist.name), slugify(self.title)) if part]
+        return '-'.join(parts) or 'piece'
 
 
 def _delete_image_file(fieldfile):
@@ -385,6 +568,18 @@ class SiteSettings(models.Model):
     # Defaults pre-selected on the piece form for new (and unset) pieces.
     default_currency = models.CharField(max_length=3, default='USD', choices=CURRENCY_CHOICES)
     default_dimension_unit = models.CharField(max_length=2, default='in', choices=DIMENSION_UNIT_CHOICES)
+    # Whether Quick add holds captures back as drafts. Defaults to True: a photo
+    # with no title and a "Not set" artist is rarely what you want strangers to
+    # see, so opting out of the safety net is a deliberate choice.
+    quick_add_drafts = models.BooleanField(
+        default=True,
+        verbose_name='Quick add starts pieces as drafts',
+        help_text=(
+            'On: captured photos stay off the public site until you fill in their details. '
+            'Off: they appear in the public gallery straight away, titleless, with a '
+            '“Not set” artist and location.'
+        ),
+    )
 
     class Meta:
         verbose_name = 'site settings'
@@ -410,11 +605,15 @@ class SiteSettings(models.Model):
         trail), and every option tie-breaks on title so the order is stable.
         Falls back to the default if public_sort holds an unrecognised value.
         """
+        # Each ordering ends in 'id' so it is total. With Quick add's
+        # publish-immediately mode a public list can contain several untitled
+        # pieces sharing the placeholder artist, which tie on every other key —
+        # and a tie makes the row order (and any future pagination) arbitrary.
         title = 'title'
         orderings = {
-            self.PublicSort.ACQUIRED_DESC: (models.F('date_acquired').desc(nulls_last=True), title),
-            self.PublicSort.ACQUIRED_ASC: (models.F('date_acquired').asc(nulls_last=True), title),
-            self.PublicSort.TITLE: (title,),
-            self.PublicSort.ARTIST: ('artist__name', title),
+            self.PublicSort.ACQUIRED_DESC: (models.F('date_acquired').desc(nulls_last=True), title, 'id'),
+            self.PublicSort.ACQUIRED_ASC: (models.F('date_acquired').asc(nulls_last=True), title, 'id'),
+            self.PublicSort.TITLE: (title, 'id'),
+            self.PublicSort.ARTIST: ('artist__name', title, 'id'),
         }
         return orderings.get(self.public_sort, orderings[self.PublicSort.ACQUIRED_DESC])

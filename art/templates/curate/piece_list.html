@@ -7,6 +7,7 @@
   <p class="curate-page-sub">{{ paginator.count }} {% if is_filtered %}matching · filtered{% else %}total{% endif %}</p>
 {% endblock %}
 {% block page_actions %}
+  <a class="curate-btn curate-btn--ghost" href="{% url 'art:curate:quick-add' %}">⚡ Quick add</a>
   <a class="curate-btn" href="{% url 'art:curate:piece-add' %}">+ Add piece</a>
 {% endblock %}
 
@@ -50,6 +51,14 @@
           <option value="" {% if not selected_tagged %}selected{% endif %}>Any</option>
           <option value="yes" {% if selected_tagged == 'yes' %}selected{% endif %}>Tagged</option>
           <option value="no" {% if selected_tagged == 'no' %}selected{% endif %}>Untagged</option>
+        </select>
+      </label>
+      <label class="curate-field">
+        <span class="curate-field__label">Status</span>
+        <select name="draft">
+          <option value="" {% if not selected_draft %}selected{% endif %}>Any</option>
+          <option value="yes" {% if selected_draft == 'yes' %}selected{% endif %}>Drafts</option>
+          <option value="no" {% if selected_draft == 'no' %}selected{% endif %}>Published</option>
         </select>
       </label>
       <label class="curate-field">
@@ -97,7 +106,9 @@
               {% endif %}
             </span>
             <span class="curate-piece__meta">
-              <span class="curate-piece__title" title="{{ piece.title }}">{{ piece.title }}</span>
+              <span class="curate-piece__title" title="{{ piece.display_title }}">
+                {% if piece.draft %}<span class="curate-draft-badge">Draft</span> {% endif %}{{ piece.display_title }}
+              </span>
               <span class="curate-piece__artist">{{ piece.artist }}</span>
               <span class="curate-piece__location">{{ piece.location }}</span>
             </span>

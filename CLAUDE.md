@@ -86,41 +86,13 @@ content, so scope submit-button selectors to the content (e.g.
 
 Single Django app (`art/`) within the `artsite/` project:
 
-- **Models** (`art/models.py`): `Piece`, `Artist`, `Medium`, `Location`, and `PieceDocument` (staff-only files attached to a piece) use UUID primary keys; `SiteSettings` is an integer-pk singleton (pk forced to 1 in `save()`). `Piece` has a custom `save()` that auto-generates a slug from `{artist-name}-{title}`, resolving collisions by querying for a free numeric suffix (then keeping the slug stable, since it's a public URL).
-- **Views** (`art/views.py`): Class-based generic views (ListView, DetailView). All querysets use `select_related()` for join optimization. `DetailView` handles NFC tag-writing workflow via `?from=tag` query param.
-- **URLs** (`art/urls.py`): Standard `path()` routes — public views at the root and the staff admin under `/curate/`.
-- **Admin** (`art/admin.py`): Customized admin with fieldsets, filters, search, and inline image thumbnails. Slug is read-only (auto-generated).
-- **Templates**: public pages under `art/templates/art/`, the `/curate/` admin under `art/templates/curate/`. Images use lazy loading; the public detail page has a lightbox.
-- **Static files**: Served via WhiteNoise middleware. Styling is hand-rolled — `normalize.css` (reset) plus `art.css` (design tokens in `:root`, with a `prefers-color-scheme` dark variant) on the public site; the admin additionally loads `curate.css` and the detail page `lightbox.css`.
-
-### Adding a field to `Piece`
-
-A new piece field touches several places. Work through them in order:
-
-1. **Model + migration** (`art/models.py`): add the field, then `makemigrations`
-   + `migrate`. Keep new fields nullable/`blank` and additive so existing rows
-   aren't fabricated values.
-2. **Form** (`art/forms.py` `PieceForm.Meta.fields`, + any widget/label) and its
-   placement in `art/templates/curate/piece_form.html`.
-3. **Admin** (`art/admin.py` `PieceAdmin.fieldsets`).
-4. **Search**: if the field is optional (a curator can leave it unset), add a
-   presence filter to `PieceListView.PRESENCE_FILTERS` (`art/views_curate.py`).
-   `test_presence_filters_cover_every_optional_field` fails until you either add
-   it there or list it in that test's `excluded` set. (That test only checks
-   Piece's own fields — a *related* model worth filtering on, like `documents`,
-   must be added by hand, using an `Exists` subquery rather than a join so a
-   piece's row isn't multiplied by its related count.)
-5. **Public display**: if it should appear publicly, render it in
-   `art/templates/art/detail.html`. **Privacy boundary:** `notes_private`,
-   `purchase_price`, and `purchase_currency` are curator-only and must never
-   appear in a public template (`acquired` and `date_acquired` *are*
-   intentionally public on the detail page). Give any new sensitive field an
-   `assertNotContains` guard on the public detail view, alongside
-   `test_private_notes_never_leak_publicly` in `test_public_views.py`.
-   Staff-only **documents** (`PieceDocument`) are a separate private category:
-   they live in the `STORAGES['private']` store and are reachable only through
-   the staff-gated download view — never rendered on, or linked from, a public
-   page (guarded in `test_documents.py` + the gate matrix in `test_security.py`).
+- **Models** (`art/models.py`): `Piece`, `Artist`, `Medium`, `Location`, and `PieceDocument` (staff-only files attached to a piece) use UUID primary keys; `SiteSettings` is an integer-pk singleton (pk forced to 1 in `save()`). `Piece` has a custom `save()` that manages its slug — provisional until the piece has a real identity, then minted once from `{artist-name}-{title}` and frozen (it's a public URL). See the Quick add notes below for the full rule.
+- **Views** (`art/views.py`): Class-based generic views (ListView, DetailView). All querysets use `select_related()` for join optimization. `DetailView` handles NFC tag-writing workflow via `?from=tag` query param. `PieceQuerysetMixin` also enforces the **draft boundary** (below) — public lists exclude drafts for everyone; only `DetailView` sets `drafts_visible_to_staff`.
+- **Drafts & Quick add** (`Piece.draft`, `views_curate.QuickAddView`): `/curate/pieces/quick-add/` is a phone-first bulk capture page — each uploaded photo becomes a piece with no title and the shared placeholder artist/location rows. Whether captures start as drafts is the curator-editable `SiteSettings.quick_add_drafts` (default True; off = they publish immediately). Photos run through the same `validate_image_upload` as the normal form, and each is created inside its own savepoint so one storage failure can't roll back the whole batch (ATOMIC_REQUESTS wraps the POST).
+  - **The placeholder is a flagged ROW, not a name.** `Artist.is_placeholder` / `Location.is_placeholder` (`placeholder_artist()`/`placeholder_location()`), with a partial unique index allowing only one flagged row each. Renaming the row clears the flag — that's the supported way to adopt it as a real artist. Never match on the string `PLACEHOLDER_LABEL`: a curator may have their own "Not set" artist for unattributed works.
+  - **A draft is invisible publicly** — absent from every public list, and its detail page 404s for non-staff (and is sent `no-store`, since the same URL answers differently per session).
+  - **URL stability is a STORED latch, `Piece.slug_settled`** — never re-derived from current state. Until a piece is published *with* a title *and* a real artist, it carries a provisional slug derived from its own id (`capture-<hex>`): unique by construction, so captures never compete for a shared namespace, a completed capture's URL is never reissued to another piece, and no collision probe is needed. On the save that completes it, the real `<artist>-<title>` slug is minted once and frozen. `title` is `blank=True` precisely so a partial pass (artist first, title later) can be saved; use `Piece.display_title` for any human-facing string. Being NFC-tagged also settles the URL, and the tag-write path refuses while a URL is provisional. Guarded by `SlugStabilityTests`/`PlaceholderIdentityTests` in `test_quick_add.py` + `DraftVisibilityTests` in `test_public_views.py`.
+  - Every list ordering ends in `id`: captures tie on artist and title, and a paginated tie makes rows repeat or vanish between pages.
 
 ## Storage
 

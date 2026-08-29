@@ -4,7 +4,7 @@ from django.contrib.messages import get_messages
 from django.test import TestCase
 from django.urls import reverse
 
-from art.models import Piece, SiteSettings
+from art.models import PLACEHOLDER_LABEL, Piece, SiteSettings, placeholder_artist, placeholder_location
 
 from .factories import make_artist, make_location, make_piece, make_staff, make_user, tiny_png
 
@@ -246,6 +246,64 @@ class DetailViewTests(TestCase):
         self.assertNotContains(resp, 'SECRET-CONDITION-NOTE')
 
 
+class DraftVisibilityTests(TestCase):
+    """Invariant: a draft piece is NOT on the public site.
+
+    Quick add captures pieces as drafts with placeholder artist/location and no
+    title (test_quick_add.py). Until the curator completes one, it must not
+    appear in any public list — for anyone, staff included, since the gallery is
+    the public artifact. The single exception is the detail page, which renders
+    for staff so a curator can preview a piece before publishing it.
+    """
+
+    def setUp(self):
+        self.artist, self.loc = make_artist(), make_location()
+        self.draft = make_piece(title='Unfinished', artist=self.artist, location=self.loc, draft=True)
+        self.live = make_piece(title='Published', artist=self.artist, location=self.loc)
+
+    def _titles(self, url_name):
+        resp = self.client.get(reverse(url_name))
+        return [p.title for p in resp.context['piece_list']]
+
+    def test_drafts_are_absent_from_every_public_list(self):
+        for url_name in ('art:index', 'art:artists', 'art:location'):
+            with self.subTest(view=url_name):
+                self.assertEqual(self._titles(url_name), ['Published'])
+
+    def test_drafts_stay_hidden_in_lists_even_for_staff(self):
+        self.client.force_login(make_staff())
+        for url_name in ('art:index', 'art:artists', 'art:location', 'art:untagged'):
+            with self.subTest(view=url_name):
+                self.assertNotIn('Unfinished', self._titles(url_name))
+
+    def test_draft_detail_page_is_404_for_the_public(self):
+        url = reverse('art:piece', kwargs={'slug': self.draft.slug})
+        self.assertEqual(self.client.get(url).status_code, 404)
+        self.client.force_login(make_user())  # signed in, but not staff
+        self.assertEqual(self.client.get(url).status_code, 404)
+
+    def test_staff_can_preview_a_draft_detail_page(self):
+        self.client.force_login(make_staff())
+        resp = self.client.get(reverse('art:piece', kwargs={'slug': self.draft.slug}))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'only you can see this page')
+
+    def test_placeholder_artist_and_location_never_reach_a_public_page(self):
+        # The by-artist / by-location pages group whatever the piece list gives
+        # them, so hiding drafts must also keep "Not set" out of those headings —
+        # a photo walk shouldn't publish a placeholder artist to the world.
+        make_piece(title='', artist=placeholder_artist(), location=placeholder_location(), draft=True)
+        for url_name in ('art:index', 'art:artists', 'art:location'):
+            with self.subTest(view=url_name):
+                self.assertNotContains(self.client.get(reverse(url_name)), PLACEHOLDER_LABEL)
+
+    def test_publishing_puts_the_piece_on_the_public_site(self):
+        self.draft.draft = False
+        self.draft.save()
+        self.assertIn('Unfinished', self._titles('art:index'))
+        self.assertEqual(self.client.get(reverse('art:piece', kwargs={'slug': self.draft.slug})).status_code, 200)
+
+
 class PublicMediaInvariantTests(TestCase):
     """Invariant: collection media (piece images, artist portraits) is PUBLIC —
     served to anyone, with no per-image gating. The ONLY private media is the
@@ -374,3 +432,59 @@ class NfcTaggingViewTests(TestCase):
         self.assertFalse(piece.tagged)
         # authenticated non-staff isn't anonymous, so no sign-in hint
         self.assertFalse(any('Sign in' in m for m in self._messages(resp)))
+
+
+class DraftCachingTests(TestCase):
+    """A draft's URL answers 200-or-404 depending on the session, so it must
+    never be storable in a shared cache — the draft boundary can't rest on a
+    proxy happening to honour the `Vary: Cookie` that SessionMiddleware adds."""
+
+    def setUp(self):
+        self.draft = make_piece(title='Unfinished', draft=True)
+        self.live = make_piece(title='Published')
+
+    def _cache_control(self, resp):
+        return resp.headers.get('Cache-Control', '')
+
+    def test_a_staff_draft_preview_is_not_cacheable(self):
+        self.client.force_login(make_staff())
+        resp = self.client.get(reverse('art:piece', kwargs={'slug': self.draft.slug}))
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn('no-store', self._cache_control(resp))
+
+    def test_any_signed_in_response_is_not_cacheable(self):
+        # Staff see extra controls on ordinary pages too, so those must not be
+        # cached and served to the public either.
+        self.client.force_login(make_staff())
+        resp = self.client.get(reverse('art:piece', kwargs={'slug': self.live.slug}))
+        self.assertIn('no-store', self._cache_control(resp))
+
+
+class NfcTagWritingTests(TestCase):
+    """`?from=tag` marks a piece tagged. It must refuse while the piece's URL is
+    still provisional — the template hides the link, but the handler is
+    reachable directly and a tag written now would point at a dead link."""
+
+    def setUp(self):
+        self.client.force_login(make_staff())
+
+    def test_tagging_is_refused_while_the_url_is_provisional(self):
+        piece = make_piece(title='', artist=placeholder_artist(), location=placeholder_location(), draft=True)
+        self.assertTrue(piece.slug_is_provisional())
+        resp = self.client.get(reverse('art:piece', kwargs={'slug': piece.slug}) + '?from=tag', follow=True)
+        piece.refresh_from_db()
+        self.assertFalse(piece.tagged, 'an unfinished capture must not be tagged')
+        self.assertTrue(any('isn’t final yet' in m.message for m in resp.context['messages']))
+
+    def test_tagging_works_once_the_piece_is_finished(self):
+        piece = make_piece(title='Finished')
+        resp = self.client.get(reverse('art:piece', kwargs={'slug': piece.slug}) + '?from=tag', follow=True)
+        piece.refresh_from_db()
+        self.assertTrue(piece.tagged)
+        self.assertTrue(any('now marked as tagged' in m.message for m in resp.context['messages']))
+
+    def test_the_message_names_an_untitled_piece_sensibly(self):
+        # Not '“” is now marked as tagged.'
+        piece = make_piece(title='', artist=make_artist(name='Real'), tagged=True)
+        resp = self.client.get(reverse('art:piece', kwargs={'slug': piece.slug}) + '?from=tag', follow=True)
+        self.assertTrue(any('“Untitled”' in m.message for m in resp.context['messages']))

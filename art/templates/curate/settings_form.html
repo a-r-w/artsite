@@ -26,6 +26,20 @@
     </fieldset>
 
     <fieldset class="curate-form__section">
+      <legend>Quick add</legend>
+      <label class="curate-form__check">
+        {{ form.quick_add_drafts }}
+        <span>{{ form.quick_add_drafts.label }}</span>
+      </label>
+      {% if form.quick_add_drafts.help_text %}
+        <p class="curate-form__help">{{ form.quick_add_drafts.help_text }}</p>
+      {% endif %}
+      {% if form.quick_add_drafts.errors %}
+        <p class="curate-form__field-error">{{ form.quick_add_drafts.errors|join:" " }}</p>
+      {% endif %}
+    </fieldset>
+
+    <fieldset class="curate-form__section">
       <legend>New piece defaults</legend>
       <div class="curate-form__row">
         {% include "curate/_field.html" with field=form.default_currency %}

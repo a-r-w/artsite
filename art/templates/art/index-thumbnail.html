@@ -3,13 +3,13 @@
   {% if piece.image %}
     <span class="art-card__image-wrap">
       <img src="{{ piece.image|thumbnail_url:'thumb' }}"
-           alt="{{ piece.title }} by {{ piece.artist }}"
+           alt="{{ piece.display_title }} by {{ piece.artist }}"
            width="400" height="400"
            loading="lazy" decoding="async">
     </span>
   {% else %}
     <span class="art-card__image-wrap art-card__image-wrap--empty" aria-hidden="true"></span>
   {% endif %}
-  <span class="art-card__title">{{ piece.title }}</span>
+  <span class="art-card__title">{{ piece.display_title }}</span>
   <span class="art-card__artist">{{ piece.artist }}</span>
 </a>

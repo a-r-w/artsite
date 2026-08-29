@@ -5,12 +5,14 @@ test_security.py.
 """
 
 import json
+from unittest.mock import patch
 
 from django.contrib.messages import get_messages
 from django.test import TestCase
 from django.urls import reverse
 
-from art.models import Artist, Location, Medium, Piece, SiteSettings
+from art.models import Artist, Location, Medium, Piece, SiteSettings, placeholder_artist, placeholder_location
+from art.views_curate import PieceListView
 
 from .factories import make_artist, make_document, make_location, make_medium, make_piece, make_staff, tiny_png
 
@@ -274,7 +276,6 @@ class PieceAdvancedFilterTests(CurateTestCase):
         excluded = {
             'id',
             'slug',
-            'title',
             'artist',
             'location',  # required / identity
             'tagged',  # has its own dedicated filter
@@ -734,6 +735,9 @@ class SettingsViewTests(CurateTestCase):
             'public_sort': 'acquired_desc',
             'default_currency': 'USD',
             'default_dimension_unit': 'in',
+            # Checked by default in the rendered form; an unchecked box is simply
+            # absent from a real submit, which is how it gets turned off.
+            'quick_add_drafts': 'on',
         }
         data.update(overrides)
         return data
@@ -772,6 +776,20 @@ class SettingsViewTests(CurateTestCase):
         form = self.client.get(reverse('art:curate:piece-add')).context['form']
         self.assertEqual(form['purchase_currency'].value(), 'JPY')
         self.assertEqual(form['dimension_unit'].value(), 'cm')
+
+    def test_quick_add_draft_mode_is_on_by_default(self):
+        # Assert the SAVED row, not the transient SiteSettings() fallback: only
+        # the stored default can catch a migration that ships the wrong one, and
+        # the safety net being off by default would be a privacy regression.
+        SiteSettings.load().save()
+        self.assertTrue(SiteSettings.objects.get().quick_add_drafts)
+        self.assertContains(self.client.get(reverse('art:curate:settings')), 'id_quick_add_drafts')
+
+    def test_quick_add_draft_mode_can_be_turned_off(self):
+        payload = self._payload()
+        del payload['quick_add_drafts']  # an unchecked checkbox is omitted by the browser
+        self.client.post(reverse('art:curate:settings'), payload)
+        self.assertFalse(SiteSettings.load().quick_add_drafts)
 
     def test_post_updates_public_sort(self):
         self.client.post(reverse('art:curate:settings'), self._payload(public_sort='title'))
@@ -825,3 +843,62 @@ class PieceUploadResilienceTests(CurateTestCase):
         self.assertEqual(Piece.objects.count(), 0)
         self.assertContains(resp, 'Re-select your image')
         self.assertNotContains(resp, 'alt="Current image"')  # no misleading thumbnail
+
+
+class QueueDeterminismTests(CurateTestCase):
+    """Quick add manufactures rows that tie on every human-visible sort key (one
+    shared placeholder artist, no title). A paginated query with ties may order
+    its pages inconsistently, so a curator working the queue would see some
+    captures twice and others never — silently leaving photos uncatalogued."""
+
+    def test_every_sort_is_total(self):
+        for key, (_label, ordering) in PieceListView.SORTS.items():
+            with self.subTest(sort=key):
+                self.assertIn('id', ordering, f'{key} needs a unique tiebreaker')
+
+    def test_paging_a_tied_queue_visits_every_capture_exactly_once(self):
+        artist, location = placeholder_artist(), placeholder_location()
+        for _ in range(9):
+            Piece.objects.create(title='', artist=artist, location=location, draft=True)
+
+        with patch.object(PieceListView, 'paginate_by', 4):
+            seen = []
+            for page in (1, 2, 3):
+                resp = self.client.get(reverse('art:curate:piece-list'), {'draft': 'yes', 'page': page})
+                seen += [p.id for p in resp.context['pieces']]
+
+        self.assertEqual(len(seen), 9)
+        self.assertEqual(len(set(seen)), 9, 'no capture may appear on two pages or be skipped')
+
+
+class PartialCompletionTests(CurateTestCase):
+    """ "Capture now, fill in the details later" requires the edit form to accept
+    a partial save — otherwise the only UI there is refuses every pass but the
+    last, and silently discards the edit."""
+
+    def test_an_artist_only_pass_saves_without_a_title(self):
+        capture = Piece.objects.create(
+            title='', artist=placeholder_artist(), location=placeholder_location(), draft=True
+        )
+        real = make_artist(name='Berthe Morisot')
+        resp = self.client.post(
+            reverse('art:curate:piece-edit', kwargs={'slug': capture.slug}),
+            {
+                'title': '',
+                'artist': str(real.id),
+                'location': str(capture.location_id),
+                'medium': '',
+                'medium_details': '',
+                'acquired': '',
+                'website': '',
+                'notes': '',
+                'notes_private': '',
+                'date_acquired': '',
+                'purchase_price': '',
+                'draft': 'on',
+            },
+        )
+        self.assertEqual(resp.status_code, 302, 'a titleless save must be accepted')
+        capture.refresh_from_db()
+        self.assertEqual(capture.artist_id, real.id)
+        self.assertEqual(capture.display_title, 'Untitled')

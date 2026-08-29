@@ -1,7 +1,7 @@
 {% extends "curate/curate_base.html" %}
 {% load thumbnail %}
 
-{% block head_title %}Delete “{{ object.title }}”{% endblock %}
+{% block head_title %}Delete “{{ object.display_title }}”{% endblock %}
 {% block page_title %}Delete piece{% endblock %}
 
 {% block content %}
@@ -13,7 +13,7 @@
       </figure>
     {% endif %}
     <div class="curate-confirm__body">
-      <h2 class="curate-confirm__title">“{{ object.title }}”</h2>
+      <h2 class="curate-confirm__title">“{{ object.display_title }}”</h2>
       <p class="curate-confirm__byline">by {{ object.artist }}</p>
       <p>Deleting removes the database record and its image file from storage.</p>
       <p><strong>This cannot be undone.</strong></p>

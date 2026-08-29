@@ -23,8 +23,15 @@ class PieceFormTests(TestCase):
 
     def test_core_fields_required(self):
         form = PieceForm()
-        for name in ('title', 'artist', 'location'):
+        for name in ('artist', 'location'):
             self.assertTrue(form.fields[name].required, name)
+
+    def test_title_is_optional_so_a_capture_can_be_completed_in_passes(self):
+        # Quick add creates pieces with no title; requiring one here would make
+        # an artist-only first pass impossible to save (the edit form is the only
+        # UI there is), which defeats "capture now, fill in the details later".
+        # Untitled pieces render as "Untitled" via Piece.display_title.
+        self.assertFalse(PieceForm().fields['title'].required)
 
     def test_date_acquired_uses_html5_date_widget(self):
         widget = PieceForm().fields['date_acquired'].widget
@@ -49,11 +56,12 @@ class PieceFormTests(TestCase):
         """image/medium optionality lives on the model (blank=True), so a bare
         ModelForm — e.g. the Django admin's — treats them as optional too,
         without any per-form override."""
-        BareForm = modelform_factory(Piece, fields=['image', 'medium', 'title'])
+        BareForm = modelform_factory(Piece, fields=['image', 'medium', 'title', 'artist'])
         fields = BareForm().fields
         self.assertFalse(fields['image'].required)
         self.assertFalse(fields['medium'].required)
-        self.assertTrue(fields['title'].required)
+        self.assertFalse(fields['title'].required)
+        self.assertTrue(fields['artist'].required)
 
     def test_unpriced_piece_does_not_fabricate_a_currency(self):
         # A legacy piece with no price/currency, edited for an unrelated reason,
@@ -181,10 +189,10 @@ class UnsavedUploadTests(TestCase):
 
     def test_true_when_upload_present_but_form_invalid(self):
         form = PieceForm(
-            data={'title': '', 'artist': str(make_artist().id), 'location': str(make_location().id)},
+            data={'title': 'Something', 'artist': '', 'location': str(make_location().id)},
             files={'image': tiny_png()},
         )
-        self.assertFalse(form.is_valid())  # blank title
+        self.assertFalse(form.is_valid())  # no artist
         self.assertTrue(form.unsaved_image)
 
     def test_false_without_an_upload(self):

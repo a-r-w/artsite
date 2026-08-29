@@ -5,12 +5,15 @@ tangled. Every view here is staff-only and uncached.
 """
 
 import json
+import logging
 import os
 import uuid
 from urllib.parse import urlencode
 
+from django.conf import settings
 from django.contrib import messages
 from django.core.exceptions import ValidationError
+from django.db import transaction
 from django.db.models import Count, Exists, F, OuterRef, Q
 from django.db.models.deletion import ProtectedError
 from django.http import FileResponse, Http404, HttpResponse
@@ -27,9 +30,22 @@ from .forms import (
     PieceForm,
     SiteSettingsForm,
     validate_document_upload,
+    validate_image_upload,
 )
-from .models import Artist, Location, Medium, Piece, PieceDocument, SiteSettings
+from .models import (
+    PLACEHOLDER_LABEL,
+    Artist,
+    Location,
+    Medium,
+    Piece,
+    PieceDocument,
+    SiteSettings,
+    placeholder_artist,
+    placeholder_location,
+)
 from .views import StaffRequiredMixin
+
+logger = logging.getLogger(__name__)
 
 
 def _to_uuid(value):
@@ -89,12 +105,17 @@ class PieceListView(CurateBaseView, generic.ListView):
 
     # sort value -> (dropdown label, order_by args). Insertion order is the
     # order the options appear in; the first key is the default.
+    # Every ordering ends in 'id'. Quick add creates rows that tie COMPLETELY on
+    # the other keys (one shared placeholder artist, no title), and a paginated
+    # query whose sort has ties is free to order the pages inconsistently — so a
+    # curator working the queue would see captures twice, or never. Django's own
+    # admin appends '-pk' for exactly this reason.
     SORTS = {
-        'artist': ('Artist A–Z', ('artist__name', 'title')),
-        'title': ('Title A–Z', ('title',)),
-        'recent': ('Recently acquired', (F('date_acquired').desc(nulls_last=True), 'title')),
-        'oldest': ('Oldest acquired', (F('date_acquired').asc(nulls_last=True), 'title')),
-        'added': ('Recently added', (F('created').desc(nulls_last=True), 'title')),
+        'artist': ('Artist A–Z', ('artist__name', 'title', 'id')),
+        'title': ('Title A–Z', ('title', 'id')),
+        'recent': ('Recently acquired', (F('date_acquired').desc(nulls_last=True), 'title', 'id')),
+        'oldest': ('Oldest acquired', (F('date_acquired').asc(nulls_last=True), 'title', 'id')),
+        'added': ('Recently added', (F('created').desc(nulls_last=True), 'title', 'id')),
     }
     DEFAULT_SORT = 'artist'
 
@@ -107,6 +128,10 @@ class PieceListView(CurateBaseView, generic.ListView):
     # presence filter here too. test_presence_filters_cover_every_optional_field
     # fails until you do (or explicitly exclude the field there).
     PRESENCE_FILTERS = {
+        # Title is required on the piece form, but Quick add captures photos
+        # without one — so "Title: absent" is the queue of captures still
+        # needing their details, in either Quick add mode.
+        'title': ('Title', Q(title='')),
         'image': ('Image', Q(image='') | Q(image__isnull=True)),
         'medium': ('Medium', Q(medium__isnull=True)),
         'medium_details': ('Medium details', Q(medium_details='')),
@@ -141,6 +166,14 @@ class PieceListView(CurateBaseView, generic.ListView):
         elif tagged == 'no':
             qs = qs.filter(tagged=False)
 
+        # Drafts (quick-add captures awaiting their metadata) are the working
+        # queue: "Drafts" is the list a curator sits with after a photo walk.
+        draft = self.request.GET.get('draft')
+        if draft == 'yes':
+            qs = qs.filter(draft=True)
+        elif draft == 'no':
+            qs = qs.filter(draft=False)
+
         for key, (_label, missing_q) in self.PRESENCE_FILTERS.items():
             value = self.request.GET.get(f'has_{key}')
             if value == 'yes':
@@ -160,6 +193,7 @@ class PieceListView(CurateBaseView, generic.ListView):
         ctx['selected_location'] = self.request.GET.get('location', '')
         ctx['selected_medium'] = self.request.GET.get('medium', '')
         ctx['selected_tagged'] = self.request.GET.get('tagged', '')
+        ctx['selected_draft'] = self.request.GET.get('draft', '')
         ctx['sort_options'] = [(value, label) for value, (label, _order) in self.SORTS.items()]
         ctx['selected_sort'] = self.request.GET.get('sort') or self.DEFAULT_SORT
 
@@ -182,6 +216,7 @@ class PieceListView(CurateBaseView, generic.ListView):
             or ctx['selected_location']
             or ctx['selected_medium']
             or ctx['selected_tagged']
+            or ctx['selected_draft']
             or advanced_active
         )
 
@@ -219,7 +254,7 @@ class PieceCreateView(CurateBaseView, generic.CreateView):
 
     def form_valid(self, form):
         response = super().form_valid(form)
-        messages.success(self.request, f'Added “{self.object.title}”.')
+        messages.success(self.request, f'Added “{self.object.display_title}”.')
         return response
 
     def get_success_url(self):
@@ -240,12 +275,14 @@ class PieceUpdateView(CurateBaseView, generic.UpdateView):
         ctx = super().get_context_data(**kwargs)
         ctx['active'] = 'pieces'
         ctx['mode'] = 'edit'
-        ctx['page_title'] = self.object.title
+        # A quick-add draft has no title yet, so fall back to a placeholder
+        # heading rather than rendering an empty <h1>.
+        ctx['page_title'] = self.object.title or 'Untitled draft'
         return ctx
 
     def form_valid(self, form):
         response = super().form_valid(form)
-        messages.success(self.request, f'Saved changes to “{self.object.title}”.')
+        messages.success(self.request, f'Saved changes to “{self.object.display_title}”.')
         return response
 
     def get_success_url(self):
@@ -285,6 +322,102 @@ _INLINE_CONTENT_TYPES = {
     '.heic': 'image/heic',
     '.heif': 'image/heif',
 }
+
+
+class QuickAddView(CurateBaseView, View):
+    """Capture pieces as bare photos — for cataloguing a room with a phone.
+
+    Each photo becomes a DRAFT piece: placeholder artist/location (a Piece can't
+    have neither — see PLACEHOLDER_LABEL in models.py), no title, hidden from the
+    public site until the curator completes it. The point is to get the artwork
+    *recorded* in one pass and do the metadata later, at a desk.
+
+    Photos go through the same `validate_image_upload` as the regular form, so
+    the format allowlist, size cap, and fail-closed EXIF strip all still apply —
+    nothing here is a looser way into storage. A rejected photo is reported and
+    skipped rather than failing the whole batch, so one odd file in twenty
+    doesn't cost the walk.
+    """
+
+    template_name = 'curate/quick_add.html'
+    # How many just-captured drafts to show back as reassurance ("it worked").
+    RECENT_LIMIT = 12
+
+    def get(self, request):
+        return render(request, self.template_name, self._context())
+
+    def post(self, request):
+        photos = request.FILES.getlist('photos')
+        if not photos:
+            messages.info(request, 'No photos were selected.')
+            return redirect('art:curate:quick-add')
+
+        as_draft = SiteSettings.load().quick_add_drafts
+        artist = location = None
+        added = failed = 0
+        for upload in photos:
+            try:
+                validate_image_upload(upload)
+            except ValidationError as exc:
+                messages.error(request, f'{upload.name}: {" ".join(exc.messages)}')
+                continue
+            # Resolved on first use, not up front: a batch where every photo is
+            # rejected should not leave two permanent "Not set" rows behind in
+            # the artist and location lists. Shared by the whole walk thereafter,
+            # so the curator can reassign it in one filtered pass.
+            if artist is None:
+                artist, location = placeholder_artist(), placeholder_location()
+            try:
+                # Each photo is its own savepoint. ATOMIC_REQUESTS wraps the whole
+                # POST, so without this a storage hiccup on photo 40 of 60 would
+                # roll back all 39 that had already succeeded — losing the walk
+                # and orphaning their files. Only the failing photo is lost.
+                with transaction.atomic():
+                    Piece.objects.create(image=upload, title='', artist=artist, location=location, draft=as_draft)
+            except Exception:
+                # Deliberately broad: the point is that ONE bad photo must not
+                # cost the batch. Logged (Sentry, if configured) so a systematic
+                # failure is still visible rather than silently swallowed.
+                logger.exception('Quick add failed to store %s', upload.name)
+                failed += 1
+                messages.error(request, f'{upload.name}: could not be saved — try it again on its own.')
+                continue
+            added += 1
+
+        if added:
+            noun = 'draft' if as_draft else 'piece'
+            tail = (
+                'They stay off the public site until you fill in their details.'
+                if as_draft
+                else 'They are live on the public site now — add their details when you can.'
+            )
+            messages.success(request, f'Added {added} {noun}{"" if added == 1 else "s"}. {tail}')
+        return redirect('art:curate:quick-add')
+
+    def _context(self):
+        # Two overlapping backlogs, counted separately because they answer
+        # different questions and have different filtered views: untitled
+        # captures still need their details, drafts are still hidden from the
+        # public site. A batch can be one without the other — titled but not yet
+        # published, or (in publish-immediately mode) live but nameless.
+        untitled = Piece.objects.filter(title='')
+        drafts = Piece.objects.filter(draft=True)
+        pending = Piece.objects.filter(Q(title='') | Q(draft=True))
+        return {
+            'active': 'pieces',
+            'page_title': 'Quick add',
+            'as_draft': SiteSettings.load().quick_add_drafts,
+            # Nulls last: `created` is null only for pieces predating the column,
+            # which by definition aren't fresh captures.
+            'recent_captures': pending.order_by(F('created').desc(nulls_last=True), 'id')[: self.RECENT_LIMIT],
+            'unfinished_count': untitled.count(),
+            'draft_count': drafts.count(),
+            'placeholder_label': PLACEHOLDER_LABEL,
+            # The multipart parser rejects a request with more files than this
+            # before the view runs, so the page enforces it client-side with a
+            # real message instead of letting the batch die as a bare 400.
+            'max_files': getattr(settings, 'DATA_UPLOAD_MAX_NUMBER_FILES', 100),
+        }
 
 
 class PieceDocumentDownloadView(CurateBaseView, View):

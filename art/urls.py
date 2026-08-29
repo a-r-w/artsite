@@ -19,6 +19,7 @@ curate_patterns = (
         path('settings/', views_curate.SettingsView.as_view(), name='settings'),
         path('pieces/', views_curate.PieceListView.as_view(), name='piece-list'),
         path('pieces/add/', views_curate.PieceCreateView.as_view(), name='piece-add'),
+        path('pieces/quick-add/', views_curate.QuickAddView.as_view(), name='quick-add'),
         path('pieces/<slug:slug>/edit/', views_curate.PieceUpdateView.as_view(), name='piece-edit'),
         path('pieces/<slug:slug>/delete/', views_curate.PieceDeleteView.as_view(), name='piece-delete'),
         path(

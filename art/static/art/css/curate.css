@@ -178,7 +178,8 @@
 }
 .curate-filters__row {
   display: grid;
-  grid-template-columns: minmax(180px, 2fr) repeat(5, minmax(120px, 1fr));
+  /* search + artist, location, medium, tagged, status, sort */
+  grid-template-columns: minmax(180px, 2fr) repeat(6, minmax(120px, 1fr));
   gap: 0.75rem 1rem;
   align-items: end;
 }
@@ -1018,4 +1019,154 @@ body.curate-modal-open { overflow: hidden; }
   .curate-form__field textarea {
     font-size: 16px;
   }
+}
+
+/* ---------- Quick add ---------- */
+/* Phone-first: this page is used one-handed, walking around a room, so the two
+   capture controls are big tap targets and everything else stays out of the way. */
+.quickadd {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+  box-shadow: var(--shadow);
+}
+.quickadd__lead {
+  margin: 0 0 1.25rem;
+  color: var(--ink-soft);
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+.quickadd__actions {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: 1fr;
+}
+@media (min-width: 32rem) {
+  .quickadd__actions { grid-template-columns: 2fr 1fr; }
+}
+/* The <label> is the button; the file input inside it is visually hidden but
+   still focusable/clickable, so the native picker opens on tap. */
+.quickadd__btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 3.5rem;
+  padding: 0.75rem 1rem;
+  font-size: 1.05rem;
+  text-align: center;
+  background: transparent;
+  color: var(--ink);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease, opacity 120ms ease;
+}
+.quickadd__btn:hover { border-color: var(--muted); }
+.quickadd__btn:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.quickadd__btn--primary {
+  background: var(--accent);
+  color: var(--on-accent);
+  border-color: var(--accent);
+  font-weight: 600;
+}
+.quickadd__btn--primary:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent-soft);
+}
+.quickadd__btn input[type="file"] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+/* Upload in flight: the form is already submitting, so make a second tap a
+   no-op rather than kicking off a duplicate POST of the same batch. */
+.quickadd__btn.is-busy {
+  opacity: 0.5;
+  pointer-events: none;
+}
+.quickadd__hint {
+  margin: 1rem 0 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+.quickadd__status {
+  margin: 1rem 0 0;
+  padding: 0.6rem 0.8rem;
+  background: var(--bg);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+}
+.quickadd__drafts { margin-top: 2rem; }
+.quickadd__drafts-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 0 0.75rem;
+  font-family: var(--font-sans);
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+.quickadd__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.quickadd__item a {
+  position: relative;
+  display: block;
+  aspect-ratio: 1;
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+}
+/* Absolute inset rather than height:100%, for the same reason as
+   .curate-piece__thumb img above: iOS Safari doesn't resolve a percentage
+   height against an aspect-ratio parent, so the thumbnail overflowed and got
+   clipped by `overflow: hidden`. */
+.quickadd__item img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.quickadd__item-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+/* Draft marker in the curate piece grid — a piece that isn't on the public site. */
+.curate-draft-badge {
+  display: inline-block;
+  padding: 0 0.35em;
+  border: 1px solid var(--accent-soft);
+  border-radius: var(--radius-sm);
+  color: var(--accent);
+  font-size: 0.7em;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  vertical-align: 0.1em;
 }

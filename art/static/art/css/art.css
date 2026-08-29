@@ -579,3 +579,19 @@ p { margin: 0 0 1rem; }
   .piece-meta dt:first-child { padding-top: 0; }
   .artist-card { flex-direction: column; align-items: center; text-align: center; }
 }
+
+/* Draft notice on a staff preview of an unpublished piece. Deliberately NOT
+   .staff-only: that class is a flex row for the NFC/Edit buttons, and flexbox
+   would break this sentence into separately-centred chunks around its link. */
+.piece-draft-note {
+  margin: 0.5rem auto 0;
+  max-width: 46ch;
+  padding: 0.4rem 0.75rem;
+  border: 1px dashed var(--accent-soft);
+  border-radius: var(--radius-sm);
+  color: var(--ink-soft);
+  font-family: var(--font-sans);
+  font-size: 0.85rem;
+  line-height: 1.5;
+  text-align: center;
+}

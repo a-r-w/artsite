@@ -42,6 +42,7 @@ class CurateUrlMatrix:
             r('art:curate:settings'),
             r('art:curate:piece-list'),
             r('art:curate:piece-add'),
+            r('art:curate:quick-add'),
             r('art:curate:piece-edit', kwargs={'slug': piece.slug}),
             r('art:curate:piece-delete', kwargs={'slug': piece.slug}),
             r('art:curate:document-download', kwargs={'slug': piece.slug, 'pk': document.pk}),
@@ -133,6 +134,20 @@ class DeniedRequestsDoNotMutateTests(TestCase):
         resp = self.client.post(reverse('art:curate:medium-inline-add'), {'description': 'Sneaky'})
         self.assertEqual(resp.status_code, 302)
         self.assertFalse(Medium.objects.filter(description='Sneaky').exists())
+
+    def test_anonymous_cannot_bulk_create_pieces_via_quick_add(self):
+        # Quick add is the widest write surface in the admin — an unauthenticated
+        # POST could otherwise mint pieces and push files into public storage.
+        resp = self.client.post(reverse('art:curate:quick-add'), {'photos': [tiny_png()]})
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn('/curate/login/', resp.url)
+        self.assertEqual(Piece.objects.count(), 0)
+
+    def test_non_staff_cannot_bulk_create_pieces_via_quick_add(self):
+        self.client.force_login(make_user())
+        resp = self.client.post(reverse('art:curate:quick-add'), {'photos': [tiny_png()]})
+        self.assertEqual(resp.status_code, 403)
+        self.assertEqual(Piece.objects.count(), 0)
 
     def test_anonymous_cannot_add_documents(self):
         piece = make_piece()
