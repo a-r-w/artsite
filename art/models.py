@@ -308,16 +308,16 @@ class Piece(models.Model):
                 # permanent URL (imports, fixtures, a hand-picked address), so
                 # take it as given and settled rather than overwriting it.
                 self.slug_settled = True
+            elif self.tagged and self.slug:
+                # Checked BEFORE settling, not as a fallback: a physical tag on
+                # the wall already encodes this exact URL, so freeze what it has
+                # rather than re-minting a nicer one the tag can't reach.
+                self.slug_settled = True
             elif self._identity_is_complete():
                 self.slug = self._settled_slug()
                 self.slug_settled = True
             else:
                 self.slug = self.slug or self._provisional_slug()
-                # A physical NFC tag now encodes this URL, so stop moving it even
-                # though the metadata is still incomplete. Freezes what it already
-                # has rather than minting a placeholder-derived name.
-                if self.tagged:
-                    self.slug_settled = True
         elif not self.slug:  # defensive: an insert is never a partial save
             self.slug = self._provisional_slug()
         # Strip EXIF (GPS/camera/timestamp) from a freshly-uploaded image — it's
@@ -381,19 +381,29 @@ class Piece(models.Model):
         return not self.slug_settled
 
     def _identity_is_complete(self):
-        """True when the piece is ready to own a permanent "<artist>-<title>" URL.
+        """True when the piece is ready to own a permanent URL: it has a title.
 
-        Needs all three: published (a draft isn't public at all), titled, and
-        filed under a real artist rather than the Quick add placeholder — the
-        last so that titling a batch first and assigning artists in a second pass
-        doesn't freeze "not-set-" into every URL.
+        A title is the earliest point at which a piece can have a URL worth
+        keeping, so it's the point we commit — waiting for it to also be
+        published under a real artist left captures sitting on a throwaway
+        "quick-add-<hex>" address for the whole cataloguing session, which is all
+        a curator ever sees in the address bar.
+
+        The title must also survive slugify(): one made entirely of emoji or
+        punctuation yields nothing to build a URL from, and with the placeholder
+        artist omitted from the base there'd be nothing left but the 'piece'
+        fallback — permanently latching the piece onto /piece/, /piece-1/, … So
+        such a piece keeps its throwaway address until it gets a usable title.
+
+        The trade-off: a typo typed into the title is baked into the URL, because
+        settling is permanent. Editable slugs (with redirects from retired ones)
+        are the intended remedy; until then a slug can only be fixed by deleting
+        and re-adding the piece.
         """
-        if self.draft or not self.title.strip():
-            return False
-        return not self.artist.is_placeholder
+        return bool(slugify(self.title))
 
     def _provisional_slug(self):
-        """A unique, disposable URL for a piece that has no real identity yet.
+        """A unique, disposable URL for a piece with no title yet.
 
         Derived from the piece's own id, which makes it unique by construction:
         no collision probe (a photo walk would otherwise pay one query per
@@ -401,7 +411,7 @@ class Piece(models.Model):
         namespace, so a slug vacated when a capture is completed can never be
         reissued to a different artwork.
         """
-        return f'capture-{self.id.hex[:12]}'
+        return f'quick-add-{self.id.hex[:12]}'
 
     def _settled_slug(self):
         base_slug = self._slug_base()
@@ -420,10 +430,13 @@ class Piece(models.Model):
         return f'{base_slug}-{counter}'
 
     def _slug_base(self):
-        # Drop parts that slugify to nothing — a title made entirely of
-        # punctuation or emoji — so the base can't end in a stray hyphen.
-        # 'piece' is the last resort if both parts vanish.
-        parts = [part for part in (slugify(self.artist.name), slugify(self.title)) if part]
+        # "<artist>-<title>", but the placeholder artist is left out: a piece
+        # titled before its artist is assigned should read /morning-tide/, not
+        # /not-set-morning-tide/. Parts that slugify to nothing (a title of pure
+        # punctuation or emoji) are dropped too, so the base can't end in a stray
+        # hyphen; 'piece' is the last resort if everything vanishes.
+        artist_part = '' if self.artist.is_placeholder else slugify(self.artist.name)
+        parts = [part for part in (artist_part, slugify(self.title)) if part]
         return '-'.join(parts) or 'piece'
 
 

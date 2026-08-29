@@ -107,9 +107,10 @@
 
     {% if user.is_authenticated and user.is_staff %}
       <p class="staff-only">
-        {% if not piece.tagged and not piece.slug_is_provisional %}
-          {# Hidden while the piece is an unfinished capture: its URL can still
-             change, and a tag written now would point at a dead link. #}
+        {% if not piece.tagged and not piece.slug_is_provisional and not piece.draft %}
+          {# Hidden while the piece is an unfinished capture (its URL can still
+             change) or still a draft (the page 404s for everyone but you), since
+             either way a tag written now would point at a dead link. #}
           <a class="nfc-link" href="smartnfc://write/?recordType=url&payload={{ request.scheme }}://{{ request.get_host }}{{ request.path }}?from=tag">Write NFC Tag</a>
         {% endif %}
         <a class="nfc-link" href="{% url 'art:curate:piece-edit' slug=piece.slug %}">Edit</a>

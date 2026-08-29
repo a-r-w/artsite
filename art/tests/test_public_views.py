@@ -484,7 +484,38 @@ class NfcTagWritingTests(TestCase):
         self.assertTrue(any('now marked as tagged' in m.message for m in resp.context['messages']))
 
     def test_the_message_names_an_untitled_piece_sensibly(self):
-        # Not '“” is now marked as tagged.'
-        piece = make_piece(title='', artist=make_artist(name='Real'), tagged=True)
+        # Not '“” was already marked as tagged.' The UI can't tag an untitled
+        # piece any more (the handler refuses a provisional URL), but imported or
+        # legacy rows can be in this state, so force it rather than assume it away.
+        piece = make_piece(title='', artist=make_artist(name='Real'))
+        Piece.objects.filter(pk=piece.pk).update(tagged=True, slug_settled=True)
         resp = self.client.get(reverse('art:piece', kwargs={'slug': piece.slug}) + '?from=tag', follow=True)
         self.assertTrue(any('“Untitled”' in m.message for m in resp.context['messages']))
+
+
+class DraftNfcTaggingTests(TestCase):
+    """A draft's page 404s for everyone but staff, so a tag written against it
+    would be dead until the piece is published — and because the Untagged view
+    both hides drafts and filters on tagged=False, the piece would silently drop
+    off the list that exists to catch exactly that."""
+
+    def setUp(self):
+        self.client.force_login(make_staff())
+        self.draft = make_piece(title='Titled Draft', artist=make_artist(name='Real'), draft=True)
+
+    def test_the_tag_write_link_is_not_offered_on_a_draft(self):
+        resp = self.client.get(reverse('art:piece', kwargs={'slug': self.draft.slug}))
+        self.assertEqual(resp.status_code, 200)  # staff can preview it
+        self.assertNotContains(resp, 'smartnfc://')
+
+    def test_the_tag_handler_refuses_a_draft(self):
+        resp = self.client.get(reverse('art:piece', kwargs={'slug': self.draft.slug}) + '?from=tag', follow=True)
+        self.draft.refresh_from_db()
+        self.assertFalse(self.draft.tagged)
+        self.assertTrue(any('Publish this piece first' in m.message for m in resp.context['messages']))
+
+    def test_publishing_restores_the_tag_write_link(self):
+        self.draft.draft = False
+        self.draft.save()
+        resp = self.client.get(reverse('art:piece', kwargs={'slug': self.draft.slug}))
+        self.assertContains(resp, 'smartnfc://')

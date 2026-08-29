@@ -107,6 +107,15 @@ class DetailView(PieceQuerysetMixin, generic.DetailView):
                         'Add this piece’s details first — its web address isn’t final yet, '
                         'so a tag written now would stop working.',
                     )
+                elif piece.draft:
+                    # A draft's page 404s for everyone but staff, so a tag
+                    # written now would be dead until the piece is published —
+                    # and it would drop off the Untagged list in the meantime.
+                    messages.info(
+                        request,
+                        'Publish this piece first — while it’s a draft the page isn’t '
+                        'visible to anyone else, so the tag wouldn’t work.',
+                    )
                 elif piece.tagged:
                     messages.info(request, f'“{piece.display_title}” was already marked as tagged.')
                 else:

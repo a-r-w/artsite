@@ -54,9 +54,9 @@ your own hardware.
   **draft** (placeholder artist/location, no title) that's **hidden from the
   public site** until you sit down and fill in the details. Prefer them to show
   up straight away? Turn off *“Quick add starts pieces as drafts”* in Settings.
-  Either way, a piece's web address isn't fixed until it has a title and a real
-  artist — so finishing one later never leaves a placeholder URL behind, and once
-  fixed it never moves. Any piece can be drafted or published from its edit form.
+  Either way, a capture sits on a throwaway web address only until you give it a
+  title — at which point it takes its real one (and keeps it for good). Any piece
+  can be drafted or published from its edit form.
 - **Staff-only documents** — attach receipts, valuations, and condition reports
   to a piece, each with an image/PDF thumbnail. Stored in a separate private
   location and streamed only through a staff-gated view, so they’re **never**

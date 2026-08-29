@@ -87,7 +87,7 @@ class QuickAddCaptureTests(QuickAddTestCase):
             # Derived from the piece's own id, so captures never compete for a
             # shared "not-set-N" namespace — and the placeholder's NAME never
             # ends up in a URL that might later be frozen.
-            self.assertTrue(slug.startswith('capture-'), slug)
+            self.assertTrue(slug.startswith('quick-add-'), slug)
             self.assertNotIn('not-set', slug)
         self.assertTrue(all(p.slug_is_provisional() for p in Piece.objects.all()))
 
@@ -253,25 +253,31 @@ class QuickAddPublishImmediatelyTests(QuickAddTestCase):
             piece.refresh_from_db()
 
         edit(piece.slug, title='Evening Study')
-        self.assertTrue(piece.slug_is_provisional(), piece.slug)
+        # A title is enough to commit a URL, and the placeholder artist is left
+        # out of it — so this reads /evening-study/, not /not-set-evening-study/.
+        self.assertEqual(piece.slug, 'evening-study')
+        self.assertFalse(piece.slug_is_provisional())
 
+        # Assigning the real artist afterwards does NOT move the settled URL.
         edit(piece.slug, title='Evening Study', artist=str(artist.id), location=str(location.id))
-        self.assertEqual(piece.slug, 'berthe-morisot-evening-study')
+        self.assertEqual(piece.slug, 'evening-study')
+        self.assertEqual(piece.artist_id, artist.id)
 
     def test_titling_first_and_assigning_the_artist_later_still_settles_cleanly(self):
-        # A two-pass workflow (title the batch, then assign artists) must not
-        # leave "not-set-" frozen into every URL.
+        # A two-pass workflow (title the batch, then assign artists). The URL is
+        # committed at the title and never contains the placeholder's name.
         self.post_photos(tiny_png())
         piece = Piece.objects.get()
 
         piece.title = 'Evening Study'
         piece.save()
-        self.assertTrue(piece.slug_is_provisional(), 'still filed under the placeholder artist')
+        self.assertEqual(piece.slug, 'evening-study')
+        self.assertNotIn('not-set', piece.slug)
+        self.assertFalse(piece.slug_is_provisional())
 
         piece.artist = make_artist(name='Berthe Morisot')
         piece.save()
-        self.assertEqual(piece.slug, 'berthe-morisot-evening-study')
-        self.assertFalse(piece.slug_is_provisional())
+        self.assertEqual(piece.slug, 'evening-study', 'a committed URL does not move')
 
     def test_tagging_settles_the_url_even_while_untitled(self):
         # Backstop for a curator who ticks "tagged" by hand on an untitled piece:
@@ -502,8 +508,157 @@ class SettledLatchDefaultsTests(TestCase):
         piece = make_piece(title='', artist=make_artist(name='Vincent'))
         self.assertTrue(piece.slug_is_provisional())
 
-    def test_a_published_piece_under_the_placeholder_artist_does_not(self):
-        # The case that would otherwise freeze "not-set-…" into a live URL.
+    def test_a_titled_piece_under_the_placeholder_artist_owns_a_clean_url(self):
+        # Titled is enough to commit, and the placeholder is left out of the
+        # base — so this must never freeze "not-set-…" into a live URL.
         piece = make_piece(title='Harbour Light', artist=placeholder_artist())
+        self.assertFalse(piece.slug_is_provisional())
+        self.assertEqual(piece.slug, 'harbour-light')
+
+
+class ThrowawayUrlLifetimeTests(QuickAddTestCase):
+    """How long a capture sits on a throwaway URL — the thing a curator sees in
+    the address bar for the whole cataloguing session."""
+
+    def test_the_throwaway_url_disappears_as_soon_as_a_title_is_typed(self):
+        self.post_photos(tiny_png())
+        piece = Piece.objects.get()
+        self.assertTrue(piece.slug.startswith('quick-add-'), piece.slug)
+
+        # Still a draft, artist still the placeholder — a title alone is enough.
+        piece.title = 'Morning Tide'
+        piece.save()
+        self.assertEqual(piece.slug, 'morning-tide')
+
+    def test_two_captures_sharing_a_title_get_distinct_urls(self):
+        self.post_photos(tiny_png('a.png'), tiny_png('b.png'))
+        first, second = Piece.objects.order_by('created', 'id')
+        for piece in (first, second):
+            piece.title = 'Untitled Study'
+            piece.save()
+        self.assertNotEqual(first.slug, second.slug)
+        self.assertEqual({first.slug, second.slug}, {'untitled-study', 'untitled-study-1'})
+
+    def test_the_resettle_migration_derives_the_same_url_as_the_model(self):
+        # 0030 re-slugs pieces the old rule left on a throwaway URL. Its slug
+        # derivation is necessarily duplicated (migrations run against historical
+        # models, which have no custom save), so pin the two together: run the
+        # migration function over a piece stuck in the old state and assert it
+        # lands on exactly what the model would have chosen.
+        import importlib
+
+        from django.apps import apps as live_apps
+
+        resettle = importlib.import_module('art.migrations.0030_resettle_titled_pieces').resettle
+
+        self.post_photos(tiny_png())
+        stuck = Piece.objects.get()
+        # Recreate the pre-0030 state: titled, but still on its throwaway URL.
+        Piece.objects.filter(pk=stuck.pk).update(title='Morning Tide', slug=stuck.slug, slug_settled=False)
+
+        resettle(live_apps, None)
+
+        stuck.refresh_from_db()
+        self.assertEqual(stuck.slug, 'morning-tide')
+        self.assertFalse(stuck.slug_is_provisional())
+
+    def test_the_resettle_migration_leaves_untitled_captures_alone(self):
+        import importlib
+
+        from django.apps import apps as live_apps
+
+        resettle = importlib.import_module('art.migrations.0030_resettle_titled_pieces').resettle
+
+        self.post_photos(tiny_png())
+        untitled = Piece.objects.get()
+        resettle(live_apps, None)
+        untitled.refresh_from_db()
+        self.assertTrue(untitled.slug.startswith('quick-add-'), untitled.slug)
+        self.assertTrue(untitled.slug_is_provisional())
+
+
+class SettleEdgeCaseTests(QuickAddTestCase):
+    """Edges of "a title commits the URL" that the happy-path tests miss."""
+
+    def test_a_tagged_piece_keeps_its_url_even_if_a_nicer_one_is_available(self):
+        # A tag on the wall encodes the current URL. Re-minting it to something
+        # tidier would leave the tag pointing at a 404, so tagging wins over
+        # settling — checked before the settle branch, not as a fallback.
+        piece = make_piece(title='', artist=placeholder_artist())
+        Piece.objects.filter(pk=piece.pk).update(
+            title='Harbour Light', slug='not-set-harbour-light', tagged=True, slug_settled=False
+        )
+        piece.refresh_from_db()
+        piece.save()
+        self.assertEqual(piece.slug, 'not-set-harbour-light')
+        self.assertFalse(piece.slug_is_provisional(), 'and it is frozen from now on')
+
+    def test_a_title_that_slugifies_to_nothing_does_not_commit_a_url(self):
+        # Emoji/punctuation titles yield no usable slug. With the placeholder
+        # artist left out of the base there'd be nothing but the 'piece'
+        # fallback, permanently latching pieces onto /piece/, /piece-1/, …
+        first = make_piece(title='🎨', artist=placeholder_artist())
+        second = make_piece(title='🖼', artist=placeholder_artist())
+        for piece in (first, second):
+            self.assertTrue(piece.slug.startswith('quick-add-'), piece.slug)
+            self.assertTrue(piece.slug_is_provisional())
+        self.assertFalse(Piece.objects.filter(slug__startswith='piece').exists())
+
+    def test_a_whitespace_only_title_does_not_commit_a_url(self):
+        piece = make_piece(title='   ', artist=placeholder_artist())
         self.assertTrue(piece.slug_is_provisional())
-        self.assertNotIn('not-set', piece.slug)
+        self.assertTrue(piece.slug.startswith('quick-add-'), piece.slug)
+
+
+class ResettleMigrationScopeTests(QuickAddTestCase):
+    """0030 rewrites public URLs at deploy time, so it must touch ONLY pieces
+    still stranded on a throwaway address."""
+
+    def setUp(self):
+        super().setUp()
+        import importlib
+
+        from django.apps import apps as live_apps
+
+        self.live_apps = live_apps
+        self.resettle = importlib.import_module('art.migrations.0030_resettle_titled_pieces').resettle
+
+    def _stranded(self, title, **fields):
+        piece = make_piece(title='', artist=placeholder_artist())
+        Piece.objects.filter(pk=piece.pk).update(title=title, slug_settled=False, **fields)
+        piece.refresh_from_db()
+        return piece
+
+    def test_a_stranded_capture_is_rescued(self):
+        piece = self._stranded('Morning Tide')
+        self.resettle(self.live_apps, None)
+        piece.refresh_from_db()
+        self.assertEqual(piece.slug, 'morning-tide')
+
+    def test_a_meaningful_url_is_never_rewritten(self):
+        # 0029 flags an artist literally named "Not set" as the placeholder, so
+        # a curator who files unattributed works that way would otherwise have
+        # every such piece silently re-addressed on deploy — with no redirect.
+        piece = self._stranded('Harbour Light', slug='not-set-harbour-light')
+        self.resettle(self.live_apps, None)
+        piece.refresh_from_db()
+        self.assertEqual(piece.slug, 'not-set-harbour-light')
+
+    def test_a_tagged_piece_is_skipped(self):
+        piece = self._stranded('Morning Tide', tagged=True)
+        before = piece.slug
+        self.resettle(self.live_apps, None)
+        piece.refresh_from_db()
+        self.assertEqual(piece.slug, before)
+
+    def test_it_matches_the_model_on_titles_that_slugify_to_nothing(self):
+        # The migration's derivation is duplicated, so this pins the edge the
+        # docstring promises it shares with Piece._identity_is_complete().
+        for title in ('   ', '🎨'):
+            with self.subTest(title=title):
+                piece = self._stranded(title)
+                before = piece.slug
+                self.resettle(self.live_apps, None)
+                piece.refresh_from_db()
+                self.assertEqual(piece.slug, before)
+                self.assertFalse(piece.slug_settled)
