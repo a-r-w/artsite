@@ -249,7 +249,7 @@ class ExifStripTests(TestCase):
         piece.save()
         stored = self._stored(piece.image)
         out = Image.open(io.BytesIO(stored)).convert('RGB')
-        self.assertEqual(list(out.getdata()), list(img.getdata()))  # lossless preserved
+        self.assertEqual(out.tobytes(), img.tobytes())  # lossless preserved (exact pixels)
         self.assertEqual(list(Image.open(io.BytesIO(stored)).getexif().keys()), [])  # and stripped
 
     def test_alpha_and_transparency_survive_the_strip(self):

@@ -51,7 +51,10 @@ AXES_ENABLED = False
 # Prod-only redirects must stay off for the test client even if ENVIRONMENT leaks in.
 SECURE_SSL_REDIRECT = False
 
-EMAIL_BACKEND = 'django.core.mail.backends.locmem.EmailBackend'
+# MAILERS replaces the deprecated EMAIL_BACKEND (removed in Django 7.0). The app
+# sends no mail — there's deliberately no password-reset flow — so this only
+# keeps any incidental send out of a real outbox.
+MAILERS = {'default': {'BACKEND': 'django.core.mail.backends.locmem.EmailBackend'}}
 
 # Keep test output clean: the security suite deliberately triggers 403s /
 # PermissionDenied, which Django would otherwise log as warnings.
