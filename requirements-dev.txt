@@ -11,4 +11,4 @@ coverage
 # Pinned so `ruff format --check` is deterministic across dev machines and CI
 # (an unpinned ruff can reformat differently and turn CI red). Keep this in sync
 # with the rev in .pre-commit-config.yaml; Dependabot bumps both together.
-ruff==0.16.4
+ruff==0.16.5

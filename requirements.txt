@@ -63,7 +63,7 @@ pillow==12.2.0
     # via
     #   easy-thumbnails
     #   pillow-heif
-pillow-heif==1.5.0
+pillow-heif==1.6.0
     # via -r requirements.in
 proto-plus==1.28.0
     # via google-api-core
