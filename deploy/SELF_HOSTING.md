@@ -231,6 +231,13 @@ Only if you're moving a live Fly/GCS collection onto this server (instead of the
 fresh start in §4). Do this with a **fresh dump of the live data**, not an old
 backup lying around — that's a stale historical snapshot.
 
+The two deployments are fully independent, so **rehearse the whole run (§8a–§8f)
+while Fly stays live**, browse the result over `127.0.0.1:8000`, then schedule the
+real cutover. Copy **media first and dump the DB last** (§8a before §8b) so a
+restored row never references a file that isn't on disk yet; re-run the §8a
+`rsync` as a final delta just before you flip DNS. A single-curator site needs no
+write-freeze beyond *not curating on the old site during the window*.
+
 ### 8a. Copy media down from GCS
 
 The DB stores bare relative names (e.g. `<uuid>-photo.jpg`); the bucket prefix is
@@ -241,9 +248,10 @@ added by the GCS backend, so files must land **directly** under `MEDIA_ROOT`:
 gsutil -m rsync -r gs://<your-bucket>/art /srv/artsite/media
 ```
 
-Copy the **private documents** down separately. They live in a sibling prefix
-(`art-private`), deliberately NOT under `art/`, so the rsync above never touches
-them — copy them into the private dir, never into the media tree:
+Copy the **private documents** down separately — the documents **and their
+thumbnails**, which share this store. They live in a sibling prefix (`art-private`),
+deliberately NOT under `art/`, so the rsync above never touches them — copy them
+into the private dir, never into the media tree:
 
 ```bash
 gsutil -m rsync -r gs://<your-bucket>/art-private /srv/artsite/private
@@ -258,6 +266,14 @@ fly proxy 5433:5432 -a <your-pg-app>
 # In another: take a custom-format dump (parallelisable, selective restore)
 pg_dump -Fc -U postgres -h localhost -p 5433 artsite > artsite.dump
 ```
+
+Confirm two things first. **Which database and role** to dump — this assumes both
+are `artsite`, but Fly often names the DB after the app; list them over the proxy
+(`psql -U postgres -h localhost -p 5433 -l`) and adjust the `pg_dump` args to
+match. And that your **`pg_dump` is ≥ the Fly Postgres major version**
+(`SELECT version();` over the proxy, or `fly image show -a <your-pg-app>`) — an
+older client can refuse to dump a newer server, so if in doubt run `pg_dump` from
+a `postgres:16` container.
 
 ### 8c. Configure + start the DB (as in §4), then restore into it
 
@@ -280,6 +296,8 @@ systemctl --user start artsite.service       # runs `migrate` on start, then gun
 ```
 
 A fresh Fly dump is already at the current migration, so `migrate` is a no-op.
+Make sure the code you cloned here is at the **same or newer** migration than Fly
+(never older, or the restored schema would be ahead of the app).
 
 ### 8d. Regenerate thumbnails
 
@@ -291,16 +309,48 @@ podman exec -i artsite-db psql -U artsite -d artsite -c \
   "TRUNCATE easy_thumbnails_thumbnail, easy_thumbnails_source, easy_thumbnails_thumbnaildimensions RESTART IDENTITY;"
 ```
 
-### 8e. Verify before cutover
+### 8e. Verify the migration landed
 
-Confirm every image the database references is actually on disk:
+Confirm every **public** image the database references is on disk:
 
 ```bash
 podman exec artsite python manage.py verify_media
 ```
 
-It exits non-zero and lists any missing files (with model/pk). Do not cut over
-until it passes.
+It exits non-zero and lists any missing files (with model/pk). It is scoped to the
+public store, though, and does **not** check the private documents — which have no
+other copy. Verify those by hand: the local count should match GCS, and one real
+download through the gated view should work once the app is up (§6).
+
+```bash
+gsutil du gs://<your-bucket>/art-private | wc -l   # objects in GCS
+find /srv/artsite/private -type f | wc -l          # what landed locally
+```
+
+Don't cut over until `verify_media` passes and the private counts agree.
+
+### 8f. Clean the back-catalogue, then go live
+
+A collection migrated from GCS can contain **legacy images uploaded before the
+EXIF-stripping feature** — public originals still carrying GPS/camera metadata. A
+media copy is exactly when to sweep them, so run this **before public traffic**.
+The first two are dry-run until `--apply` (drop it to preview); all three are
+idempotent:
+
+```bash
+# Re-strip EXIF on every public image, normalise names to <uuid><ext>, and
+# regenerate thumbnails + blur-up placeholders for anything it rewrites.
+podman exec artsite python manage.py backfill_strip_image_metadata --apply
+# Fill blur-up placeholders for any rows the strip didn't rewrite.
+podman exec artsite python manage.py backfill_image_lqip --apply
+# Regenerate any private-document thumbnails missing after the copy (writes by default).
+podman exec artsite python manage.py backfill_document_thumbnails
+```
+
+Run them once, offline — the strip decodes full-resolution originals, a heavy
+one-off batch (the OOM caveat for placeholder generation is about doing it *under
+concurrent web load*, not a one-shot backfill). It keeps files and DB rows in
+sync, so `verify_media` still passes afterward. Then flip DNS to the new host.
 
 **Rollback:** the deployments are independent. To revert, point DNS back at Fly
 (still `STORAGE_BACKEND=gcs`). To run the *self-host* against GCS temporarily, set
