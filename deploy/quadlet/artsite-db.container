@@ -6,7 +6,14 @@ After=artsite-network.service
 Image=docker.io/library/postgres:16-alpine
 ContainerName=artsite-db
 Network=artsite.network
-Volume=artsite-db-data.volume:/var/lib/postgresql/data:Z
+# PostgreSQL data directory, bind-mounted from the service user's home
+# (%h = /home/artsite under the §2 setup). Keep that home on local disk (SSD) —
+# NEVER an NFS-mounted home, as Postgres's locking/fsync assumptions corrupt data
+# over NFS (see deploy/SELF_HOSTING.md §1). install.sh creates this dir; Postgres
+# initialises and chowns it on first start. :Z (exclusive SELinux label) since
+# only this container touches it. Back it up with deploy/backup-db.sh (a logical
+# dump), never by copying this directory while Postgres is running.
+Volume=%h/db:/var/lib/postgresql/data:Z
 EnvironmentFile=%h/.config/artsite/artsite.env
 HealthCmd=pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}
 HealthInterval=30s

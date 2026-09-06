@@ -9,14 +9,18 @@ CONFIG_DIR="${HOME}/.config/artsite"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MEDIA_DIR="/srv/artsite/media"  # host path bind-mounted at /data/media (point at your NAS)
 PRIVATE_DIR="/srv/artsite/private"  # staff-only documents, bind-mounted at /data/private (NOT served by Caddy)
+DB_DIR="${HOME}/db"  # PostgreSQL data, bind-mounted at /var/lib/postgresql/data (in-home, local disk — never an NFS home)
 
 echo "==> Creating directories..."
 mkdir -p "${QUADLET_DIR}"
 mkdir -p "${CONFIG_DIR}"
+# PostgreSQL data lives in this user's home (no sudo needed). Postgres requires
+# 0700 on its data dir; it re-chowns to the postgres user on first start.
+mkdir -p "${DB_DIR}"
+chmod 700 "${DB_DIR}"
 
 echo "==> Copying quadlet files to ${QUADLET_DIR}..."
 cp "${SCRIPT_DIR}/quadlet/"*.network "${QUADLET_DIR}/"
-cp "${SCRIPT_DIR}/quadlet/"*.volume "${QUADLET_DIR}/"
 cp "${SCRIPT_DIR}/quadlet/"*.container "${QUADLET_DIR}/"
 
 echo "==> Setting permissions..."

@@ -29,9 +29,11 @@ Both are first-class — nothing here removes the GCS option.
 - A Linux server with **rootless Podman** (Quadlet support: Podman 4.4+).
 - **Caddy** running on the host; this guide adds a `/media/` handler to it.
 - A **NAS path** for media, bind-mounted into the app container.
-- **Local SSD** for the Postgres data volume — **never put Postgres on NFS/NAS**
-  (its locking/fsync assumptions corrupt data over NFS). The NAS is for media and
-  for *backups* of the DB, not the live data directory.
+- **Local disk (SSD)** for the Postgres data directory — the quadlet bind-mounts
+  a path in the service user's home (`~/db`) into the DB
+  container, so **keep that home on local SSD, never an NFS-mounted home**
+  (Postgres's locking/fsync assumptions corrupt data over NFS). The NAS is for
+  media and for *backups* of the DB, not the live data directory.
 - Inbound **80/443** port-forwarded to the server; Caddy provisions HTTPS
   automatically for your domain.
 
@@ -110,6 +112,10 @@ sudo chown artsite:artsite /srv/artsite/private
 sudo chmod 750 /srv/artsite/private        # nothing but the app should read it
 ```
 
+The **Postgres data directory** needs no host prep here — it lives in the service
+user's home (`~/db`) and `install.sh` creates it in §4. That
+keeps it on local disk; just don't put the `artsite` user's home on an NFS mount.
+
 **Rootless Podman + shared media dir — the gotchas:**
 
 - **UID mapping.** Files the container writes are owned by a *subuid* on the host,
@@ -142,7 +148,7 @@ cp deploy/artsite.env.example ~/.config/artsite/artsite.env
 #   ALLOWED_HOSTS       (your public domain)
 # STORAGE_BACKEND=local is set by the quadlet.
 
-./deploy/install.sh                          # install the quadlet units
+./deploy/install.sh                          # install the units + create ~/db
 podman build -t artsite .                    # build the app image
 systemctl --user start artsite-db.service    # start Postgres first
 systemctl --user start artsite.service       # migrates the (empty) schema, then runs gunicorn
