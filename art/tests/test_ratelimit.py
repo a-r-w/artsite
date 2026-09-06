@@ -278,7 +278,7 @@ class ShippedConfigTests(SimpleTestCase):
             os.environ,
             {
                 'ENVIRONMENT': 'production',
-                'DJANGO_SECRET_KEY': 'x',
+                'DJANGO_SECRET_KEY': 'test-only-secret-key-0123456789abcdef',
                 'DATABASE_URL': 'sqlite://',
                 'ALLOWED_HOSTS': 'example.com',  # production refuses to start without it
             },

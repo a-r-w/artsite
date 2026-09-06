@@ -22,7 +22,18 @@ if _ENVIRONMENT not in ('production', 'development'):
 PROD = _ENVIRONMENT == 'production'
 
 if PROD:
-    SECRET_KEY = os.environ['DJANGO_SECRET_KEY']
+    # Refuse to boot on a missing key (a clear error, not a bare KeyError) and
+    # on the placeholders shipped in the example env files — a copied-but-
+    # unedited .env would otherwise run "production" on a public, known key.
+    # The 32-char floor catches those and other stand-ins; a real key (the
+    # docs' token_urlsafe(50)) is well past it.
+    SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', '')
+    if len(SECRET_KEY) < 32 or SECRET_KEY in ('change-me', 'your-secret-key-here'):
+        raise ImproperlyConfigured(
+            'DJANGO_SECRET_KEY must be a real secret in production (it is unset, an '
+            'example-file placeholder, or shorter than 32 characters). Generate one: '
+            'python -c "import secrets; print(secrets.token_urlsafe(50))"'
+        )
 else:
     SECRET_KEY = 'django-insecure-*$+44#2^c2p)(hby*rq&jukeb4$g8@sv5kea%b_km0@)^!qz4w'
 

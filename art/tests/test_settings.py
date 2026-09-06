@@ -14,6 +14,9 @@ from django.test import SimpleTestCase
 
 import artsite.settings as settings_module
 
+# Any ≥32-char, non-placeholder value satisfies the production SECRET_KEY guard.
+PROD_KEY = 'test-only-secret-key-0123456789abcdef'
+
 # Env vars that steer the host/origin parsing — cleared before each reload so an
 # ambient value can't leak into a case.
 _STEERED = (
@@ -74,12 +77,12 @@ class HostAllowlistTests(SimpleTestCase):
 
     def test_production_requires_allowed_hosts(self):
         with self.assertRaises(ImproperlyConfigured):
-            self._reload(ENVIRONMENT='production', DJANGO_SECRET_KEY='x', DATABASE_URL='sqlite://')
+            self._reload(ENVIRONMENT='production', DJANGO_SECRET_KEY=PROD_KEY, DATABASE_URL='sqlite://')
 
     def test_production_with_hosts_keeps_localhost_for_the_healthcheck(self):
         s = self._reload(
             ENVIRONMENT='production',
-            DJANGO_SECRET_KEY='x',
+            DJANGO_SECRET_KEY=PROD_KEY,
             DATABASE_URL='sqlite://',
             ALLOWED_HOSTS='example.com',
         )
@@ -91,7 +94,7 @@ class HostAllowlistTests(SimpleTestCase):
         # Else the in-container HTTP healthcheck would get a 301, not a 200.
         s = self._reload(
             ENVIRONMENT='production',
-            DJANGO_SECRET_KEY='x',
+            DJANGO_SECRET_KEY=PROD_KEY,
             DATABASE_URL='sqlite://',
             ALLOWED_HOSTS='example.com',
         )
@@ -114,7 +117,7 @@ class HostAllowlistTests(SimpleTestCase):
         self.assertEqual(dev.LOGGING['handlers']['console']['formatter'], 'console')
         prod = self._reload(
             ENVIRONMENT='production',
-            DJANGO_SECRET_KEY='x',
+            DJANGO_SECRET_KEY=PROD_KEY,
             DATABASE_URL='sqlite://',
             ALLOWED_HOSTS='example.com',
         )
@@ -140,6 +143,18 @@ class HostAllowlistTests(SimpleTestCase):
         s = self._reload(STORAGE_BACKEND='gcs', GS_BUCKET_NAME='b', GS_LOCATION='myart')
         self.assertEqual(s.GS_LOCATION, 'myart')
 
+    def test_production_requires_a_real_secret_key(self):
+        # Missing, placeholder (shipped in the example env files), and
+        # too-short keys all refuse to boot — with ImproperlyConfigured, not a
+        # bare KeyError — so a copied-but-unedited .env can't run "production"
+        # on a public, known key.
+        base = dict(ENVIRONMENT='production', DATABASE_URL='sqlite://', ALLOWED_HOSTS='example.com')
+        with self.assertRaises(ImproperlyConfigured):
+            self._reload(**base)  # unset
+        for bad in ('change-me', 'your-secret-key-here', 'x'):
+            with self.assertRaises(ImproperlyConfigured):
+                self._reload(DJANGO_SECRET_KEY=bad, **base)
+
     def test_proxy_edge_defaults_to_xff_independent_of_storage(self):
         # The proxy edge is explicit config, never inferred from the storage
         # backend — a self-host pointed at GCS (the SELF_HOSTING §8 rollback)
@@ -157,7 +172,7 @@ class HostAllowlistTests(SimpleTestCase):
     def test_production_requires_database_url(self):
         # Fail closed: prod without DATABASE_URL must not silently use SQLite.
         with self.assertRaises(ImproperlyConfigured):
-            self._reload(ENVIRONMENT='production', DJANGO_SECRET_KEY='x', ALLOWED_HOSTS='example.com')
+            self._reload(ENVIRONMENT='production', DJANGO_SECRET_KEY=PROD_KEY, ALLOWED_HOSTS='example.com')
 
     def test_dev_defaults_to_a_sqlite_file_when_database_url_unset(self):
         s = self._reload()  # development, no DATABASE_URL

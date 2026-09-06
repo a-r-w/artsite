@@ -150,7 +150,7 @@ All configuration is via environment variables.
 | `GS_PROJECT_ID` | no | GCS project; inferred from the service-account key if unset. |
 | `GOOGLE_APPLICATION_CREDENTIALS` | only for `gcs` | Path to a GCS service-account JSON key. |
 | `ENVIRONMENT` | no (default `development`) | `production` enables HTTPS/HSTS/secure cookies and **requires** `DJANGO_SECRET_KEY` + `DATABASE_URL`. Unrecognised values fail closed. |
-| `DJANGO_SECRET_KEY` | in production | Django secret key. Generate one with `python -c 'import secrets; print(secrets.token_urlsafe(50))'`. |
+| `DJANGO_SECRET_KEY` | in production | Django secret key. Generate one with `python -c 'import secrets; print(secrets.token_urlsafe(50))'`. Example-file placeholders and values under 32 chars are rejected. |
 | `PROXY_EDGE` | no (default `xff`) | Which reverse proxy fronts the app, for login rate-limit IP resolution: `xff` (a single appending proxy — Caddy, nginx) or `fly` (Fly.io's `Fly-Client-IP`). `fly.toml` sets `fly`. |
 | `LANGUAGE_CODE` / `TIME_ZONE` | no | Locale (default `en-us` / `UTC`). The default **currency**, **units**, and **site name** are set in `/curate/` site settings, no restart needed. |
 
