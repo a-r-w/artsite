@@ -26,7 +26,8 @@ Both are first-class — nothing here removes the GCS option.
 
 ## 1. What you need
 
-- A Linux server with **rootless Podman** (Quadlet support: Podman 4.4+).
+- A Linux server with **rootless Podman** — Podman 5.0+ (the DB quadlet's
+  health-gated startup, `Notify=healthy`, needs it; Debian trixie qualifies).
 - **Caddy** running on the host; this guide adds a `/media/` handler to it.
 - A **NAS path** for media, bind-mounted into the app container.
 - **Local disk (SSD)** for the Postgres data directory — the quadlet bind-mounts

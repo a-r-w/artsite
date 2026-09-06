@@ -35,6 +35,11 @@ HealthInterval=30s
 HealthTimeout=10s
 HealthRetries=3
 HealthStartPeriod=30s
+# Podman's default stop timeout is 10s, but gunicorn drains in-flight requests
+# for up to 30s on SIGTERM (graceful_timeout in gunicorn.conf.py) — without
+# this, every restart/deploy SIGKILLs any request longer than 10s (e.g. a large
+# image upload mid-EXIF-strip). Matches fly.toml.example's kill_timeout=45s.
+StopTimeout=45
 
 # Run migrations before starting the app. Gunicorn sizing/recycling lives in
 # gunicorn.conf.py (env-driven; override GUNICORN_WORKERS etc. in artsite.env).
@@ -42,6 +47,10 @@ Exec=sh -c "python manage.py migrate --noinput && gunicorn -c gunicorn.conf.py a
 
 [Service]
 Restart=always
+# Space restarts out so a crash loop (e.g. migrate failing while the DB is
+# still coming up) can't exhaust systemd's default start-rate limit and leave
+# the unit failed until someone intervenes.
+RestartSec=5
 TimeoutStartSec=300
 
 [Install]

@@ -20,6 +20,11 @@ HealthInterval=30s
 HealthTimeout=10s
 HealthRetries=5
 HealthStartPeriod=10s
+# Report "started" only once the healthcheck passes (podman 5.0+), so the app
+# unit's After=artsite-db.service waits for Postgres to ACCEPT CONNECTIONS,
+# not merely for the container process to exist — otherwise the app's migrate
+# races the DB's startup on every boot.
+Notify=healthy
 
 [Service]
 Restart=always
