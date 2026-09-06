@@ -273,7 +273,7 @@ runs `migrate` itself via `release_command`).
 > so uploads would fail after the upgrade. One-time fix:
 > `docker compose exec -u root app chown -R app:app /data/media /data/private`.
 
-> artsite tracks **Django 6.0, which is not an LTS release**, so its mainstream
+> artsite tracks **Django 6.1, which is not an LTS release**, so its mainstream
 > support window is short. Keep moving along the 6.x line (or onto the next Django
 > LTS) rather than pinning indefinitely; watch the
 > [Django release process](https://docs.djangoproject.com/en/dev/internals/release-process/)

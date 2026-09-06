@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Django 6.0 web application for managing a personal art collection. Tracks pieces, artists, mediums, and locations behind a public gallery and a staff-only `/curate/` admin. Served dynamically (gunicorn) with pluggable media storage: the local filesystem (default) or Google Cloud Storage, selected by the `STORAGE_BACKEND` env var.
+Django 6.1 web application for managing a personal art collection. Tracks pieces, artists, mediums, and locations behind a public gallery and a staff-only `/curate/` admin. Served dynamically (gunicorn) with pluggable media storage: the local filesystem (default) or Google Cloud Storage, selected by the `STORAGE_BACKEND` env var.
 
 ## Development Commands
 
