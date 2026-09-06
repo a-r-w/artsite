@@ -98,7 +98,7 @@ class LoginRateLimitTests(TestCase):
     AXES_FAILURE_LIMIT=3,
     AXES_LOCKOUT_PARAMETERS=['ip_address'],  # isolate IP behaviour
     AXES_CLIENT_IP_CALLABLE='art.ratelimit.client_ip',  # the prod proxy resolver
-    STORAGE_BACKEND='local',  # self-host Caddy edge: real client = right-most XFF
+    PROXY_EDGE='xff',  # self-host Caddy edge: real client = right-most XFF
 )
 class CaddyClientIpTests(TestCase):
     """Self-host (Caddy) edge: Caddy appends the real client as the LAST
@@ -169,7 +169,7 @@ class CaddyClientIpTests(TestCase):
     AXES_FAILURE_LIMIT=3,
     AXES_LOCKOUT_PARAMETERS=['ip_address'],
     AXES_CLIENT_IP_CALLABLE='art.ratelimit.client_ip',
-    STORAGE_BACKEND='gcs',  # Fly edge: real client = Fly-Client-IP, NOT XFF
+    PROXY_EDGE='fly',  # Fly edge: real client = Fly-Client-IP, NOT XFF
 )
 class FlyClientIpTests(TestCase):
     """Fly edge: the right-most X-Forwarded-For entry is the app's OWN IP, so the

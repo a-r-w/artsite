@@ -27,6 +27,10 @@ kill_timeout = "45s"
 [env]
   ENVIRONMENT = "production"
   STORAGE_BACKEND = "gcs"
+  # Fly's edge records the real client in Fly-Client-IP (its X-Forwarded-For
+  # ends in the app's own address). Required on Fly, or the login rate-limiter
+  # keys every visitor to one IP. See PROXY_EDGE in artsite/settings.py.
+  PROXY_EDGE = "fly"
   # GCS bucket + project for the media backend (read by settings.py). The
   # in-bucket prefix defaults to "art" in production; override with GS_LOCATION.
   GS_BUCKET_NAME = "your-gcs-bucket"

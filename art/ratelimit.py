@@ -30,21 +30,25 @@ def _clean(entry):
 def client_ip(request):
     """The real client IP to key a login lockout on — resolved per deployment edge.
 
-    Fly.io (``STORAGE_BACKEND='gcs'``): Fly Proxy is the outermost edge and records
+    The edge is named explicitly by ``PROXY_EDGE`` (settings.py) — NOT inferred
+    from the storage backend, which is an independent choice (a self-host can
+    point at GCS temporarily and Caddy is still the proxy in front).
+
+    Fly.io (``PROXY_EDGE='fly'``): Fly Proxy is the outermost edge and records
     the real client in ``Fly-Client-IP``. Its ``X-Forwarded-For`` appends the app's
     OWN address as the right-most hop (a constant), so XFF must NOT be used there —
     doing so would collapse every request to one IP and let anyone lock the curator
     out by username alone.
 
-    Self-host Caddy (``STORAGE_BACKEND='local'``): Caddy is the single appending
-    proxy, so the real client is the RIGHT-most ``X-Forwarded-For`` entry — a
+    Single appending proxy (``PROXY_EDGE='xff'`` — the self-host Caddy, default):
+    the real client is the RIGHT-most ``X-Forwarded-For`` entry — a
     client-supplied prefix sits to its left and so can't spoof past the lockout.
 
     Either way, fall back to ``REMOTE_ADDR`` when the trusted header is absent. Only
     installed in production, where a trusted proxy is guaranteed in front; local dev
     keeps axes' ``REMOTE_ADDR`` default, so a spoofed header is never honoured.
     """
-    if settings.STORAGE_BACKEND == 'gcs':
+    if settings.PROXY_EDGE == 'fly':
         fly = _clean(request.META.get('HTTP_FLY_CLIENT_IP', ''))
         return fly or request.META.get('REMOTE_ADDR')
 

@@ -30,6 +30,7 @@ _STEERED = (
     'GS_BUCKET_NAME',
     'GS_PROJECT_ID',
     'GS_LOCATION',
+    'PROXY_EDGE',
     'STATIC_ROOT',
     'MEDIA_ROOT',
     'PRIVATE_MEDIA_ROOT',
@@ -138,6 +139,20 @@ class HostAllowlistTests(SimpleTestCase):
     def test_gcs_location_prefix_is_overridable(self):
         s = self._reload(STORAGE_BACKEND='gcs', GS_BUCKET_NAME='b', GS_LOCATION='myart')
         self.assertEqual(s.GS_LOCATION, 'myart')
+
+    def test_proxy_edge_defaults_to_xff_independent_of_storage(self):
+        # The proxy edge is explicit config, never inferred from the storage
+        # backend — a self-host pointed at GCS (the SELF_HOSTING §8 rollback)
+        # still has Caddy appending X-Forwarded-For in front, and the lockout
+        # must keep keying on that, not on Fly's header.
+        self.assertEqual(self._reload().PROXY_EDGE, 'xff')
+        s = self._reload(STORAGE_BACKEND='gcs', GS_BUCKET_NAME='b')
+        self.assertEqual(s.PROXY_EDGE, 'xff')
+
+    def test_proxy_edge_is_overridable_and_fails_closed(self):
+        self.assertEqual(self._reload(PROXY_EDGE='fly').PROXY_EDGE, 'fly')
+        with self.assertRaises(ImproperlyConfigured):
+            self._reload(PROXY_EDGE='cloudflare')  # an unknown edge must not boot
 
     def test_production_requires_database_url(self):
         # Fail closed: prod without DATABASE_URL must not silently use SQLite.

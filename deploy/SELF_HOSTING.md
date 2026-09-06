@@ -174,7 +174,8 @@ path. Reload Caddy. `file_server` does not list directories, so the collection
 isn't browsable.
 
 > **One trusted proxy hop only.** The login rate-limiter
-> (`art/ratelimit.py`) treats the right-most `X-Forwarded-For` entry as the real
+> (`art/ratelimit.py`, with `PROXY_EDGE=xff` — the default) treats the
+> right-most `X-Forwarded-For` entry as the real
 > client IP — correct when Caddy is the single proxy appending it (its default).
 > If you put **Cloudflare, a CDN, or another WAF in front of Caddy**, that
 > assumption breaks and the per-`(user, IP)` lockout can be bypassed or
@@ -354,7 +355,9 @@ sync, so `verify_media` still passes afterward. Then flip DNS to the new host.
 
 **Rollback:** the deployments are independent. To revert, point DNS back at Fly
 (still `STORAGE_BACKEND=gcs`). To run the *self-host* against GCS temporarily, set
-`STORAGE_BACKEND=gcs` in `artsite.container` and provide a key (see §9).
+`STORAGE_BACKEND=gcs` in `artsite.container` and provide a key (see §9). Leave
+`PROXY_EDGE` unset either way — Caddy is still the proxy in front of the
+self-host, whatever the storage backend.
 
 ## 9. Running on Fly.io / GCS instead
 

@@ -173,6 +173,19 @@ AXES_RESET_COOL_OFF_ON_FAILURE_DURING_LOCKOUT = False
 # (see the proxy block below).
 AXES_LOCKOUT_PARAMETERS = [['username', 'ip_address']]
 AXES_LOCKOUT_TEMPLATE = 'curate/lockout.html'
+# Which reverse proxy fronts the app in production — i.e. where the REAL client
+# IP is read from (art.ratelimit.client_ip):
+#   'xff' — a single appending proxy (the self-host Caddy; also nginx/Traefik):
+#           the right-most X-Forwarded-For hop. The default.
+#   'fly' — Fly.io's edge: the Fly-Client-IP header (Fly's XFF ends in the
+#           app's own address, so XFF is unusable there). fly.toml sets this.
+# An explicit setting, NOT inferred from STORAGE_BACKEND: storage and edge are
+# independent choices — a self-host pointed at GCS temporarily (SELF_HOSTING §8
+# rollback) still has Caddy in front and must keep reading XFF. Fail closed on
+# an unknown value, like ENVIRONMENT above.
+PROXY_EDGE = os.environ.get('PROXY_EDGE', 'xff')
+if PROXY_EDGE not in ('xff', 'fly'):
+    raise ImproperlyConfigured(f"Unrecognized PROXY_EDGE={PROXY_EDGE!r}; expected 'xff' or 'fly'.")
 
 # Locale is env-driven so a non-US deployment needn't edit source. TIME_ZONE
 # affects how stored (UTC) datetimes display; dates use international formats.
@@ -326,11 +339,12 @@ if PROD:
     SECURE_REDIRECT_EXEMPT = [r'^healthz/$']
     # Behind the Fly / Caddy reverse proxy the TCP peer is the proxy, so axes
     # would otherwise see every request as one IP (and lock the whole site out
-    # on the first attack). Resolve the REAL client per edge instead — Fly's
-    # Fly-Client-IP, or Caddy's right-most X-Forwarded-For hop (see
-    # art.ratelimit.client_ip). INVARIANT: production runs behind exactly that
-    # one trusted, client-appending proxy; if a CDN / extra hop is ever added in
-    # front, revisit client_ip or the per-IP lockout could be spoofed.
+    # on the first attack). Resolve the REAL client per edge instead — chosen
+    # by PROXY_EDGE above: Fly's Fly-Client-IP, or Caddy's right-most
+    # X-Forwarded-For hop (see art.ratelimit.client_ip). INVARIANT: production
+    # runs behind exactly that one trusted, client-appending proxy; if a CDN /
+    # extra hop is ever added in front, revisit client_ip or the per-IP lockout
+    # could be spoofed.
     # Production-only: dev has no trusted proxy, so axes keeps its REMOTE_ADDR
     # default there (a spoofed header on a directly-reachable server is ignored).
     AXES_CLIENT_IP_CALLABLE = 'art.ratelimit.client_ip'
