@@ -144,14 +144,19 @@ class HostAllowlistTests(SimpleTestCase):
         self.assertEqual(s.GS_LOCATION, 'myart')
 
     def test_production_requires_a_real_secret_key(self):
-        # Missing, placeholder (shipped in the example env files), and
-        # too-short keys all refuse to boot — with ImproperlyConfigured, not a
-        # bare KeyError — so a copied-but-unedited .env can't run "production"
-        # on a public, known key.
+        # Missing, placeholder (shipped in the example env files), too-short,
+        # and 'django-insecure-' dev keys (incl. the committed public fallback,
+        # which is long enough to sail past the length floor) all refuse to
+        # boot — with ImproperlyConfigured, not a bare KeyError — so a
+        # copied-but-unedited .env can't run "production" on a known key.
+        # Capture the committed dev key BEFORE any reload — a failed reload
+        # leaves the module partially re-executed, so read it while pristine.
+        dev_fallback = settings_module.SECRET_KEY
+        self.assertTrue(dev_fallback.startswith('django-insecure-'))
         base = dict(ENVIRONMENT='production', DATABASE_URL='sqlite://', ALLOWED_HOSTS='example.com')
         with self.assertRaises(ImproperlyConfigured):
             self._reload(**base)  # unset
-        for bad in ('change-me', 'your-secret-key-here', 'x'):
+        for bad in ('change-me', 'your-secret-key-here', 'x', dev_fallback):
             with self.assertRaises(ImproperlyConfigured):
                 self._reload(DJANGO_SECRET_KEY=bad, **base)
 
@@ -168,6 +173,25 @@ class HostAllowlistTests(SimpleTestCase):
         self.assertEqual(self._reload(PROXY_EDGE='fly').PROXY_EDGE, 'fly')
         with self.assertRaises(ImproperlyConfigured):
             self._reload(PROXY_EDGE='cloudflare')  # an unknown edge must not boot
+
+    def test_gcs_production_without_proxy_edge_warns(self):
+        # A Fly deployment predating PROXY_EDGE has STORAGE_BACKEND=gcs and no
+        # PROXY_EDGE in its fly.toml — the silent XFF fallback collapses the
+        # lockout key to one IP, so it must at least be surfaced in the logs.
+        base = dict(
+            ENVIRONMENT='production',
+            DJANGO_SECRET_KEY=PROD_KEY,
+            DATABASE_URL='sqlite://',
+            ALLOWED_HOSTS='example.com',
+            STORAGE_BACKEND='gcs',
+            GS_BUCKET_NAME='b',
+        )
+        with self.assertLogs('artsite', level='WARNING') as logs:
+            self._reload(**base)
+        self.assertTrue(any('PROXY_EDGE' in line for line in logs.output))
+        # Naming the edge — either value — is explicit config: no warning.
+        with self.assertNoLogs('artsite', level='WARNING'):
+            self._reload(PROXY_EDGE='fly', **base)
 
     def test_production_requires_database_url(self):
         # Fail closed: prod without DATABASE_URL must not silently use SQLite.

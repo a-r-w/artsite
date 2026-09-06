@@ -22,17 +22,19 @@ if _ENVIRONMENT not in ('production', 'development'):
 PROD = _ENVIRONMENT == 'production'
 
 if PROD:
-    # Refuse to boot on a missing key (a clear error, not a bare KeyError) and
-    # on the placeholders shipped in the example env files — a copied-but-
-    # unedited .env would otherwise run "production" on a public, known key.
-    # The 32-char floor catches those and other stand-ins; a real key (the
-    # docs' token_urlsafe(50)) is well past it.
+    # Refuse to boot on a key that can't be a real secret: missing (a clear
+    # error, not a bare KeyError), shorter than 32 chars (which also catches
+    # every placeholder shipped in the example env files — a copied-but-
+    # unedited .env would otherwise run "production" on a public, known key),
+    # or a 'django-insecure-' dev key (the committed fallback below is public,
+    # and any startproject-generated key is equally unfit for production).
+    # A real key (the docs' token_urlsafe(50)) is well past the floor.
     SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', '')
-    if len(SECRET_KEY) < 32 or SECRET_KEY in ('change-me', 'your-secret-key-here'):
+    if len(SECRET_KEY) < 32 or SECRET_KEY.startswith('django-insecure-'):
         raise ImproperlyConfigured(
-            'DJANGO_SECRET_KEY must be a real secret in production (it is unset, an '
-            'example-file placeholder, or shorter than 32 characters). Generate one: '
-            'python -c "import secrets; print(secrets.token_urlsafe(50))"'
+            'DJANGO_SECRET_KEY must be a real secret in production (it is unset, '
+            "shorter than 32 characters, or a 'django-insecure-' dev key). Generate "
+            'one: python -c "import secrets; print(secrets.token_urlsafe(50))"'
         )
 else:
     SECRET_KEY = 'django-insecure-=ehj+0tx$=tqpd8s4lfk2%-7f+98(b3(#*w9&(sm^^+linmp9@'
@@ -197,6 +199,19 @@ AXES_LOCKOUT_TEMPLATE = 'curate/lockout.html'
 PROXY_EDGE = os.environ.get('PROXY_EDGE', 'xff')
 if PROXY_EDGE not in ('xff', 'fly'):
     raise ImproperlyConfigured(f"Unrecognized PROXY_EDGE={PROXY_EDGE!r}; expected 'xff' or 'fly'.")
+# A Fly deployment predating PROXY_EDGE has no such line in its fly.toml and
+# would silently fall back to XFF — which on Fly is the app's own address, so
+# the lockout would key every visitor to one IP (see art.ratelimit.client_ip).
+# GCS storage is the strongest hint the edge might be Fly; surface it. (Reads
+# the env, not the STORAGE_BACKEND setting — that's parsed further down. A
+# self-host pointed at GCS keeps Caddy in front: set PROXY_EDGE=xff there to
+# say so explicitly and silence this.)
+if PROD and os.environ.get('STORAGE_BACKEND') == 'gcs' and 'PROXY_EDGE' not in os.environ:
+    logging.getLogger('artsite').warning(
+        'PROXY_EDGE is unset but STORAGE_BACKEND=gcs — if this deployment is behind '
+        "Fly's edge, set PROXY_EDGE=fly or the login rate-limiter keys every visitor "
+        'to one IP. Behind Caddy/nginx, set PROXY_EDGE=xff to silence this warning.'
+    )
 
 # Locale is env-driven so a non-US deployment needn't edit source. TIME_ZONE
 # affects how stored (UTC) datetimes display; dates use international formats.

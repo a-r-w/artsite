@@ -5,7 +5,7 @@ collection — your pieces, the artists behind them, where each one lives, and h
 you acquired them — behind a clean public gallery and a friendly curator admin.
 
 ![Python](https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=white)
-![Django](https://img.shields.io/badge/Django-6.0-092E20?logo=django&logoColor=white)
+![Django](https://img.shields.io/badge/Django-6.1-092E20?logo=django&logoColor=white)
 ![Code style: Ruff](https://img.shields.io/badge/lint-ruff-261230?logo=ruff&logoColor=white)
 
 It’s deliberately small and dependency-light: a single Django app, hand-rolled
@@ -150,7 +150,7 @@ All configuration is via environment variables.
 | `GS_PROJECT_ID` | no | GCS project; inferred from the service-account key if unset. |
 | `GOOGLE_APPLICATION_CREDENTIALS` | only for `gcs` | Path to a GCS service-account JSON key. |
 | `ENVIRONMENT` | no (default `development`) | `production` enables HTTPS/HSTS/secure cookies and **requires** `DJANGO_SECRET_KEY` + `DATABASE_URL`. Unrecognised values fail closed. |
-| `DJANGO_SECRET_KEY` | in production | Django secret key. Generate one with `python -c 'import secrets; print(secrets.token_urlsafe(50))'`. Example-file placeholders and values under 32 chars are rejected. |
+| `DJANGO_SECRET_KEY` | in production | Django secret key. Generate one with `python -c 'import secrets; print(secrets.token_urlsafe(50))'`. Values under 32 chars (all example-file placeholders) and `django-insecure-` dev keys are rejected. |
 | `PROXY_EDGE` | no (default `xff`) | Which reverse proxy fronts the app, for login rate-limit IP resolution: `xff` (a single appending proxy — Caddy, nginx) or `fly` (Fly.io's `Fly-Client-IP`). `fly.toml` sets `fly`. |
 | `LANGUAGE_CODE` / `TIME_ZONE` | no | Locale (default `en-us` / `UTC`). The default **currency**, **units**, and **site name** are set in `/curate/` site settings, no restart needed. |
 
@@ -272,6 +272,11 @@ runs `migrate` itself via `release_command`).
 > as uid 1000 (`app`), but volumes created by an earlier deploy are root-owned,
 > so uploads would fail after the upgrade. One-time fix:
 > `docker compose exec -u root app chown -R app:app /data/media /data/private`.
+
+> **Fly deployment older than `PROXY_EDGE`?** Add `PROXY_EDGE = "fly"` to your
+> `fly.toml` `[env]` (see `fly.toml.example`) before the next `fly deploy` —
+> without it the login rate-limiter falls back to `X-Forwarded-For`, which on
+> Fly keys every visitor to one IP. The app logs a warning if it detects this.
 
 > artsite tracks **Django 6.1, which is not an LTS release**, so its mainstream
 > support window is short. Keep moving along the 6.x line (or onto the next Django

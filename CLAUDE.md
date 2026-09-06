@@ -75,7 +75,7 @@ content, so scope submit-button selectors to the content (e.g.
 - `GS_PROJECT_ID` / `GS_LOCATION` — GCS project (inferred from the key if unset) / in-bucket path prefix (default `art` prod, `art-dev` dev)
 - `GOOGLE_APPLICATION_CREDENTIALS` — path to GCS service account JSON key (only needed when `STORAGE_BACKEND=gcs`)
 - `ENVIRONMENT` — set to `production` to disable DEBUG and require `DJANGO_SECRET_KEY` + `DATABASE_URL` + `ALLOWED_HOSTS`; unrecognised values fail closed
-- `DJANGO_SECRET_KEY` — required in production; example-file placeholders and values under 32 chars fail closed
+- `DJANGO_SECRET_KEY` — required in production; values under 32 chars (all example-file placeholders) and `django-insecure-` dev keys fail closed
 - `PROXY_EDGE` — which reverse proxy fronts the app in production, for the login rate-limiter's client-IP resolution: `xff` (default; a single appending proxy like the self-host Caddy — right-most `X-Forwarded-For` hop) or `fly` (Fly.io's `Fly-Client-IP` header; set by `fly.toml`). Fails closed on anything else. Explicit config — never inferred from `STORAGE_BACKEND`.
 - `ALLOWED_HOSTS` — comma-separated public hostname(s) (no scheme/port); **required in production**. `localhost`/`127.0.0.1` are always allowed (in-container healthcheck + dev), so the var only carries the public domains.
 - `CSRF_TRUSTED_ORIGINS` — comma-separated trusted origins *with scheme*; defaults to `https://<host>` for each `ALLOWED_HOSTS` entry that's a domain (localhost/IPs skipped). Set explicitly only to override that.

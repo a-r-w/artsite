@@ -369,7 +369,8 @@ self-host, whatever the storage backend.
 ## 9. Running on Fly.io / GCS instead
 
 Copy `fly.toml.example` to `fly.toml` (gitignored) and set your app name, GCS
-bucket/project, and hostname(s); it sets `STORAGE_BACKEND=gcs`. The
+bucket/project, and hostname(s); it sets `STORAGE_BACKEND=gcs` and
+`PROXY_EDGE=fly` (both required on Fly). The
 service-account key is **not** baked into the image (see `.dockerignore`);
 provide it as a Fly secret, written to the container by the `[[files]]` block
 in `fly.toml`:
