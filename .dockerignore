@@ -44,3 +44,9 @@ staticfiles/
 # Per-OS virtualenvs (the existing `venv`/`env` lines cover the Mac venv)
 .venv-linux
 .venv*
+
+# Dev tooling — cruft in the image (COPY . copies the whole build context).
+.ruff_cache/
+.claude/
+CLAUDE.md
+.github/
