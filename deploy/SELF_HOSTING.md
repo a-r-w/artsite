@@ -356,7 +356,8 @@ sync, so `verify_media` still passes afterward. Then flip DNS to the new host.
 
 **Rollback:** the deployments are independent. To revert, point DNS back at Fly
 (still `STORAGE_BACKEND=gcs`). To run the *self-host* against GCS temporarily, set
-`STORAGE_BACKEND=gcs` in `artsite.container` and provide a key (see §9). Leave
+`STORAGE_BACKEND=gcs` in `artsite.container`, plus `GS_BUCKET_NAME` and a key in
+`artsite.env` (both required for `gcs` — see §9 and `artsite.env.example`). Leave
 `PROXY_EDGE` unset either way — Caddy is still the proxy in front of the
 self-host, whatever the storage backend.
 
