@@ -35,7 +35,7 @@ if PROD:
             'python -c "import secrets; print(secrets.token_urlsafe(50))"'
         )
 else:
-    SECRET_KEY = 'django-insecure-*$+44#2^c2p)(hby*rq&jukeb4$g8@sv5kea%b_km0@)^!qz4w'
+    SECRET_KEY = 'django-insecure-=ehj+0tx$=tqpd8s4lfk2%-7f+98(b3(#*w9&(sm^^+linmp9@'
 
 DEBUG = not PROD
 
