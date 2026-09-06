@@ -15,15 +15,23 @@ Network=artsite.network
 # dump), never by copying this directory while Postgres is running.
 Volume=%h/db:/var/lib/postgresql/data:Z
 EnvironmentFile=%h/.config/artsite/artsite.env
-HealthCmd=pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}
+# $$ so systemd passes a literal $ through the generated ExecStart and the
+# IN-CONTAINER shell expands the vars (quadlet doesn't escape $; a single $
+# would be expanded — to empty — by systemd, which never sees the container
+# env). -h 127.0.0.1 probes TCP: the postgres image's first-boot init runs a
+# temp server on the unix socket only, and a socket-only pg_isready would
+# report healthy (and, with Notify=healthy below, release the app unit)
+# before the real server is listening.
+HealthCmd=pg_isready -h 127.0.0.1 -U $${POSTGRES_USER} -d $${POSTGRES_DB}
 HealthInterval=30s
 HealthTimeout=10s
 HealthRetries=5
 HealthStartPeriod=10s
-# Report "started" only once the healthcheck passes (podman 5.0+), so the app
-# unit's After=artsite-db.service waits for Postgres to ACCEPT CONNECTIONS,
-# not merely for the container process to exist — otherwise the app's migrate
-# races the DB's startup on every boot.
+# Report "started" only once the healthcheck passes, so the app unit's
+# After=artsite-db.service waits for Postgres to ACCEPT CONNECTIONS, not merely
+# for the container process to exist — otherwise the app's migrate races the
+# DB's startup on every boot. Needs podman 5.2+: the option arrived in 5.0 but
+# panicked under ROOTLESS podman until 5.2 (containers/podman#22651).
 Notify=healthy
 
 [Service]

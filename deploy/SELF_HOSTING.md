@@ -26,8 +26,9 @@ Both are first-class — nothing here removes the GCS option.
 
 ## 1. What you need
 
-- A Linux server with **rootless Podman** — Podman 5.0+ (the DB quadlet's
-  health-gated startup, `Notify=healthy`, needs it; Debian trixie qualifies).
+- A Linux server with **rootless Podman** — Podman 5.2+ (the DB quadlet's
+  health-gated startup, `Notify=healthy`, arrived in 5.0 but panicked under
+  *rootless* podman until 5.2; Debian trixie qualifies).
 - **Caddy** running on the host; this guide adds a `/media/` handler to it.
 - A **NAS path** for media, bind-mounted into the app container.
 - **Local disk (SSD)** for the Postgres data directory — the quadlet bind-mounts
@@ -41,8 +42,8 @@ Both are first-class — nothing here removes the GCS option.
 ## 2. Debian: install Podman, create a dedicated user
 
 Written against **Debian 13 “trixie”**. Debian 12 “bookworm” ships Podman 4.3,
-which predates Quadlet — use trixie, a newer podman from backports, or fall back
-to [Docker Compose](../README.md#docker-compose-recommended).
+which predates Quadlet (and the units need Podman 5.2+ — see §1) — use trixie,
+or fall back to [Docker Compose](../README.md#docker-compose-recommended).
 
 ```bash
 sudo apt update
