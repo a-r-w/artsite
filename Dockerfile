@@ -5,12 +5,20 @@ FROM python:${PYTHON_VERSION}
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
 
+# The app runs as this unprivileged user (see USER below), so an app-level
+# compromise doesn't get container-root — which under Docker's root daemon
+# (the compose path) is real root in the container and root-owned writes to
+# the volumes. Fixed uid 1000 so volume-ownership guidance (SELF_HOSTING §3,
+# the quadlet's UserNS mapping) can name a stable number.
+RUN useradd --create-home --uid 1000 app
+
 # /data/media (public images) and /data/private (staff-only documents) are the
 # local-storage roots; create them so a fresh local-backend deploy works even
 # before the volumes are mounted over them (the GCS backend ignores them).
-# Collected static lands in STATIC_ROOT (default <project>/staticfiles), written
-# by collectstatic below.
-RUN mkdir -p /djangoapp /data/media /data/private
+# app-owned: the app writes uploads there, and a fresh compose named volume
+# copies this ownership on first use. Collected static lands in STATIC_ROOT
+# (default <project>/staticfiles), written by collectstatic below.
+RUN mkdir -p /djangoapp /data/media /data/private && chown app:app /data/media /data/private
 
 WORKDIR /djangoapp
 
@@ -36,6 +44,11 @@ COPY . /djangoapp/
 # [env] / secrets, which aren't present at image-build time — and gcs now fails
 # closed without a bucket). The real backend is set at runtime, not here.
 RUN STORAGE_BACKEND=local python /djangoapp/manage.py collectstatic --no-input
+
+# Drop privileges for everything at runtime (gunicorn, migrate, the compose
+# entrypoint, podman exec). The code and collected static above deliberately
+# stay root-owned — readable but not writable by the app user.
+USER app
 
 EXPOSE 8000
 

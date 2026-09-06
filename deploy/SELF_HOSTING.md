@@ -119,8 +119,12 @@ keeps it on local disk; just don't put the `artsite` user's home on an NFS mount
 
 **Rootless Podman + shared media dir — the gotchas:**
 
-- **UID mapping.** Files the container writes are owned by a *subuid* on the host,
-  not the `artsite` user itself. So Caddy can read them, either run Caddy as root
+- **UID mapping.** The app container runs as an unprivileged user (uid 1000,
+  `app` — see the Dockerfile), and `artsite.container` maps *your* host user
+  onto that uid (`UserNS=keep-id:uid=1000,gid=1000`), so the `chown
+  artsite:artsite` above is exactly what the container needs, and files it
+  writes appear owned by the `artsite` user — not an opaque subuid. For Caddy
+  to read them, either run Caddy as root
   (root can read any uid) or grant world read — Debian's `caddy` package runs as
   the unprivileged `caddy` user, so: `sudo chmod -R o+rX /srv/artsite/media`
   (files the container writes afterwards are world-readable by default, umask

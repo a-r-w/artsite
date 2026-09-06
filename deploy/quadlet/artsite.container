@@ -21,6 +21,11 @@ Environment=ENVIRONMENT=production
 Environment=STORAGE_BACKEND=local
 Environment=MEDIA_ROOT=/data/media/
 Environment=PRIVATE_MEDIA_ROOT=/data/private/
+# The image runs as an unprivileged user, uid 1000 ("app" — see the
+# Dockerfile). Map YOUR host user onto that uid so the bind-mounted media /
+# private dirs below (owned by you per SELF_HOSTING §3) are writable, and
+# files the app writes land owned by your user — not an opaque subuid.
+UserNS=keep-id:uid=1000,gid=1000
 # Uploaded images + generated thumbnails. Point the host side at your NAS mount.
 # Shared SELinux label (:z, lowercase) so a media-serving Caddy on the host can
 # also read it; must be writable by this container's user. See the rootless
